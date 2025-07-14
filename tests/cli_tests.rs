@@ -1,7 +1,7 @@
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
-use std::process::Command;
 use std::fs;
+use std::process::Command;
 
 /// This test runs the `matrix-runner` against the `sample_project`
 /// using the `success.toml` fixture. It asserts that the command
@@ -78,11 +78,9 @@ fn test_custom_command() {
         .arg("--config")
         .arg("tests/fixtures/custom_command.toml");
 
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains(
-            "Custom command executed successfully!",
-        ));
+    cmd.assert().success().stdout(predicate::str::contains(
+        "Custom command executed successfully!",
+    ));
 }
 
 /// This test checks the HTML report generation feature.
@@ -134,9 +132,9 @@ fn test_html_report_generation() -> Result<(), Box<dyn std::error::Error>> {
         report_content.contains("<title>Test Matrix Report</title>"),
         "HTML report content is invalid"
     );
-    
+
     // Cleanup the created report file
     fs::remove_file(report_path)?;
 
     Ok(())
-} 
+}

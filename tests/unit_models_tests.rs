@@ -7,11 +7,11 @@
 //! 测试各种数据结构及其行为。
 
 use matrix_runner::runner::config::TestCase;
+use matrix_runner::runner::i18n;
 use matrix_runner::runner::models::{
-    TestResult, FailureReason, CargoDiagnostic, CargoMessage, CargoTarget
+    CargoDiagnostic, CargoMessage, CargoTarget, FailureReason, TestResult,
 };
 use matrix_runner::runner::utils::create_build_dir;
-use matrix_runner::runner::i18n;
 use std::path::PathBuf;
 
 /// Initialize i18n for tests / 为测试初始化 i18n
@@ -44,7 +44,10 @@ mod test_result_tests {
         };
 
         match &result {
-            TestResult::Passed { case: result_case, output } => {
+            TestResult::Passed {
+                case: result_case,
+                output,
+            } => {
                 assert_eq!(result_case.name, "passed-test");
                 assert_eq!(output, "Test passed successfully");
             }
@@ -64,7 +67,11 @@ mod test_result_tests {
         };
 
         match &result {
-            TestResult::Failed { case: result_case, output, reason } => {
+            TestResult::Failed {
+                case: result_case,
+                output,
+                reason,
+            } => {
                 assert_eq!(result_case.name, "failed-test");
                 assert_eq!(output, "Test failed");
                 assert!(matches!(reason, FailureReason::Test));
@@ -80,7 +87,7 @@ mod test_result_tests {
     fn test_test_result_failed_allowed() {
         let mut case = create_test_case("allowed-failure-test");
         case.allow_failure = vec![std::env::consts::OS.to_string()];
-        
+
         let result = TestResult::Failed {
             case: case.clone(),
             output: "Test failed but allowed".to_string(),
@@ -117,8 +124,14 @@ mod test_result_tests {
 
         match (&original, &cloned) {
             (
-                TestResult::Passed { case: orig_case, output: orig_output },
-                TestResult::Passed { case: clone_case, output: clone_output }
+                TestResult::Passed {
+                    case: orig_case,
+                    output: orig_output,
+                },
+                TestResult::Passed {
+                    case: clone_case,
+                    output: clone_output,
+                },
             ) => {
                 assert_eq!(orig_case.name, clone_case.name);
                 assert_eq!(orig_output, clone_output);
@@ -166,7 +179,10 @@ mod cargo_diagnostic_tests {
         let diagnostic: CargoDiagnostic = serde_json::from_str(json).unwrap();
 
         assert_eq!(diagnostic.level, "error");
-        assert_eq!(diagnostic.message, "cannot find function `test` in this scope");
+        assert_eq!(
+            diagnostic.message,
+            "cannot find function `test` in this scope"
+        );
         assert!(diagnostic.rendered.is_some());
         assert!(diagnostic.rendered.unwrap().contains("error[E0425]"));
     }
@@ -293,19 +309,19 @@ mod build_context_tests {
     #[test]
     fn test_build_context_creation_and_cleanup() {
         setup_i18n();
-        
+
         let target_path = {
             let build_ctx = create_build_dir("test-crate", "", false).unwrap();
             let path = build_ctx.target_path.clone();
-            
+
             // Verify the directory exists while BuildContext is alive
             assert!(path.exists());
             assert!(path.is_dir());
-            
+
             path
             // BuildContext goes out of scope here
         };
-        
+
         // Directory should be cleaned up after BuildContext is dropped
         assert!(!target_path.exists());
     }
@@ -313,13 +329,13 @@ mod build_context_tests {
     #[test]
     fn test_build_context_target_path() {
         setup_i18n();
-        
+
         let build_ctx = create_build_dir("test-crate", "feature1", true).unwrap();
-        
+
         // Verify target_path is valid
         assert!(build_ctx.target_path.exists());
         assert!(build_ctx.target_path.is_dir());
-        
+
         // Verify the path contains expected components
         let path_str = build_ctx.target_path.to_string_lossy();
         assert!(path_str.contains("test-crate"));

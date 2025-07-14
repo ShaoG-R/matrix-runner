@@ -40,8 +40,8 @@ fn main() -> std::io::Result<()> {
     // 2. 读取并解析基础语言文件 (en.toml)
     let base_lang_path = locales_dir.join("en.toml");
     let base_content = fs::read_to_string(&base_lang_path)?;
-    let base_translations: Translations = toml::from_str(&base_content)
-        .expect("Failed to parse en.toml");
+    let base_translations: Translations =
+        toml::from_str(&base_content).expect("Failed to parse en.toml");
 
     let mut final_code = String::new();
 
@@ -70,7 +70,7 @@ fn main() -> std::io::Result<()> {
     for path in &lang_files {
         let lang_code_raw = path.file_stem().unwrap().to_str().unwrap();
         let fn_lang_code = lang_code_raw.replace('-', "_").to_lowercase();
-        
+
         lang_codes_for_dispatch.push((lang_code_raw.to_string(), fn_lang_code.clone()));
 
         let content = fs::read_to_string(path)?;
@@ -105,14 +105,28 @@ fn main() -> std::io::Result<()> {
     }
 
     // 5. 使用收集到的信息生成主分发函数
-    writeln!(&mut final_code, "pub fn get_translation(lang: &str, key: I18nKey) -> &'static str {{").unwrap();
+    writeln!(
+        &mut final_code,
+        "pub fn get_translation(lang: &str, key: I18nKey) -> &'static str {{"
+    )
+    .unwrap();
     writeln!(&mut final_code, "    match lang {{").unwrap();
     for (raw_code, fn_code) in lang_codes_for_dispatch {
-        writeln!(&mut final_code, "        r#\"{}\"# => get_translation_{}(key),", raw_code, fn_code).unwrap();
+        writeln!(
+            &mut final_code,
+            "        r#\"{}\"# => get_translation_{}(key),",
+            raw_code, fn_code
+        )
+        .unwrap();
     }
     // 确保 'en' 作为默认回退选项存在
     let en_fn_code = "en".to_string();
-    writeln!(&mut final_code, "        _ => get_translation_{}(key),", en_fn_code).unwrap();
+    writeln!(
+        &mut final_code,
+        "        _ => get_translation_{}(key),",
+        en_fn_code
+    )
+    .unwrap();
     writeln!(&mut final_code, "    }}\n}}").unwrap();
 
     fs::write(&dest_path, final_code)?;

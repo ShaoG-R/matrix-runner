@@ -2,12 +2,12 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use colored::*;
 use futures::{StreamExt, stream};
+use runner::i18n::I18nKey;
 use serde::Deserialize;
 use std::fs;
 use std::path::PathBuf;
 use tokio::signal;
 use tokio_util::sync::CancellationToken;
-use runner::i18n::I18nKey;
 
 mod runner;
 use runner::config::TestMatrix;
@@ -104,9 +104,10 @@ async fn run_main() -> Result<()> {
         Commands::Init(args) => {
             // Determine the language to use: user-specified or auto-detected
             // 确定要使用的语言：用户指定的或自动检测的
-            let language = args.language.clone().unwrap_or_else(|| {
-                i18n::detect_system_language()
-            });
+            let language = args
+                .language
+                .clone()
+                .unwrap_or_else(|| i18n::detect_system_language());
 
             // Initialize i18n for the init wizard
             // 为初始化向导初始化 i18n
@@ -115,7 +116,10 @@ async fn run_main() -> Result<()> {
             // Show language detection message if it was auto-detected
             // 如果是自动检测的语言，显示检测消息
             if args.language.is_none() {
-                println!("🌐 {}", i18n::t_fmt(I18nKey::SystemLanguageDetected, &[&language]));
+                println!(
+                    "🌐 {}",
+                    i18n::t_fmt(I18nKey::SystemLanguageDetected, &[&language])
+                );
             }
 
             init::run_init_wizard(&language)?;
@@ -130,9 +134,18 @@ async fn run_matrix_tests(args: RunArgs) -> Result<()> {
 
     let (project_root, crate_name) = prepare_environment(&args).await?;
 
-    println!("{}", i18n::t_fmt(I18nKey::ProjectRootDetected, &[&project_root.display()]));
-    println!("{}", i18n::t_fmt(I18nKey::TestingCrate, &[&crate_name.yellow()]));
-    println!("{}", i18n::t_fmt(I18nKey::LoadingTestMatrix, &[&config_path.display()]));
+    println!(
+        "{}",
+        i18n::t_fmt(I18nKey::ProjectRootDetected, &[&project_root.display()])
+    );
+    println!(
+        "{}",
+        i18n::t_fmt(I18nKey::TestingCrate, &[&crate_name.yellow()])
+    );
+    println!(
+        "{}",
+        i18n::t_fmt(I18nKey::LoadingTestMatrix, &[&config_path.display()])
+    );
 
     let overall_stop_token = setup_signal_handler()?;
 
@@ -182,8 +195,8 @@ fn setup_and_parse_config(args: &RunArgs) -> Result<(TestMatrix, PathBuf)> {
     let config_content = fs::read_to_string(&config_path)
         .with_context(|| i18n::t_fmt(I18nKey::ConfigReadFailedPath, &[&config_path.display()]))?;
 
-    let test_matrix: TestMatrix = toml::from_str(&config_content)
-        .with_context(|| i18n::t(I18nKey::ConfigParseFailed))?;
+    let test_matrix: TestMatrix =
+        toml::from_str(&config_content).with_context(|| i18n::t(I18nKey::ConfigParseFailed))?;
 
     Ok((test_matrix, config_path))
 }
@@ -191,14 +204,16 @@ fn setup_and_parse_config(args: &RunArgs) -> Result<(TestMatrix, PathBuf)> {
 /// Prepares the testing environment by fetching dependencies and identifying the crate name.
 /// 通过预取依赖和识别 crate 名称来准备测试环境。
 async fn prepare_environment(args: &RunArgs) -> Result<(PathBuf, String)> {
-    let project_root = fs::canonicalize(&args.project_dir)
-        .with_context(|| i18n::t_fmt(I18nKey::ProjectDirNotFound, &[&args.project_dir.display()]))?;
+    let project_root = fs::canonicalize(&args.project_dir).with_context(|| {
+        i18n::t_fmt(I18nKey::ProjectDirNotFound, &[&args.project_dir.display()])
+    })?;
 
     println!("\n{}", i18n::t(I18nKey::DepFetchStart).cyan());
     let mut fetch_cmd = std::process::Command::new("cargo");
     fetch_cmd.current_dir(&project_root).arg("fetch");
 
-    let fetch_status = fetch_cmd.status()
+    let fetch_status = fetch_cmd
+        .status()
         .context("Failed to execute cargo fetch command")?;
     if !fetch_status.success() {
         return Err(anyhow::anyhow!("{}", i18n::t(I18nKey::CargoFetchFailed)));
@@ -209,8 +224,8 @@ async fn prepare_environment(args: &RunArgs) -> Result<(PathBuf, String)> {
     let manifest_content = fs::read_to_string(&manifest_path)
         .with_context(|| i18n::t_fmt(I18nKey::ManifestReadFailed, &[&manifest_path.display()]))?;
 
-    let manifest: Manifest = toml::from_str(&manifest_content)
-        .with_context(|| i18n::t(I18nKey::ManifestParseFailed))?;
+    let manifest: Manifest =
+        toml::from_str(&manifest_content).with_context(|| i18n::t(I18nKey::ManifestParseFailed))?;
     let crate_name = manifest.package.name.replace('-', "_");
 
     Ok((project_root, crate_name))
@@ -234,10 +249,16 @@ fn setup_signal_handler() -> Result<CancellationToken> {
 
 /// Filters test cases based on architecture and distributes them for parallel runners.
 /// 根据架构筛选测试用例并为并行运行器分发它们。
-fn filter_and_distribute_cases(test_matrix: TestMatrix, args: &RunArgs) -> Result<Vec<runner::config::TestCase>> {
+fn filter_and_distribute_cases(
+    test_matrix: TestMatrix,
+    args: &RunArgs,
+) -> Result<Vec<runner::config::TestCase>> {
     let total_cases_count = test_matrix.cases.len();
     let current_arch = std::env::consts::ARCH;
-    println!("{}", i18n::t_fmt(I18nKey::CurrentArch, &[&current_arch.yellow()]));
+    println!(
+        "{}",
+        i18n::t_fmt(I18nKey::CurrentArch, &[&current_arch.yellow()])
+    );
 
     let all_cases: Vec<_> = test_matrix
         .cases
@@ -247,7 +268,14 @@ fn filter_and_distribute_cases(test_matrix: TestMatrix, args: &RunArgs) -> Resul
 
     let filtered_count = total_cases_count - all_cases.len();
     if filtered_count > 0 {
-        println!("{}", i18n::t_fmt(I18nKey::FilteredArchCases, &[&filtered_count, &all_cases.len()]).yellow());
+        println!(
+            "{}",
+            i18n::t_fmt(
+                I18nKey::FilteredArchCases,
+                &[&filtered_count, &all_cases.len()]
+            )
+            .yellow()
+        );
     }
 
     match (args.total_runners, args.runner_index) {
@@ -260,16 +288,24 @@ fn filter_and_distribute_cases(test_matrix: TestMatrix, args: &RunArgs) -> Resul
                 .enumerate()
                 .filter_map(|(i, case)| if i % total == index { Some(case) } else { None })
                 .collect::<Vec<_>>();
-            println!("{}", i18n::t_fmt(I18nKey::RunningAsSplitRunner, &[&(index + 1), &total, &cases_for_this_runner.len()]).yellow());
+            println!(
+                "{}",
+                i18n::t_fmt(
+                    I18nKey::RunningAsSplitRunner,
+                    &[&(index + 1), &total, &cases_for_this_runner.len()]
+                )
+                .yellow()
+            );
             Ok(cases_for_this_runner)
         }
         (None, None) => {
             println!("{}", i18n::t(I18nKey::RunningAsSingleRunner).yellow());
             Ok(all_cases)
         }
-        _ => {
-            Err(anyhow::anyhow!("{}", i18n::t(I18nKey::RunnerFlagsInconsistent)))
-        }
+        _ => Err(anyhow::anyhow!(
+            "{}",
+            i18n::t(I18nKey::RunnerFlagsInconsistent)
+        )),
     }
 }
 
@@ -283,13 +319,16 @@ async fn run_tests(
     overall_stop_token: CancellationToken,
 ) -> Result<(
     Vec<runner::models::TestResult>, // final_results
-    bool,                             // has_unexpected_failures
+    bool,                            // has_unexpected_failures
 )> {
     println!("{}", i18n::t(I18nKey::TempDirCleanupInfo).green());
     println!("{}", i18n::t(I18nKey::FailureArtifactInfo).yellow());
 
     let current_os = std::env::consts::OS;
-    println!("{}", i18n::t_fmt(I18nKey::CurrentOs, &[&current_os.yellow()]));
+    println!(
+        "{}",
+        i18n::t_fmt(I18nKey::CurrentOs, &[&current_os.yellow()])
+    );
 
     let (flaky_cases, safe_cases): (Vec<_>, Vec<_>) = cases_to_run
         .into_iter()
@@ -298,13 +337,19 @@ async fn run_tests(
     let safe_cases_count = safe_cases.len();
     let flaky_cases_count = flaky_cases.len();
     if flaky_cases_count > 0 {
-        println!("{}", i18n::t_fmt(I18nKey::FlakyCasesFound, &[&flaky_cases_count]).yellow());
+        println!(
+            "{}",
+            i18n::t_fmt(I18nKey::FlakyCasesFound, &[&flaky_cases_count]).yellow()
+        );
     }
 
     let mut results = Vec::new();
     let fast_fail_token = CancellationToken::new();
 
-    println!("\n{}", i18n::t_fmt(I18nKey::RunningSafeCases, &[&safe_cases_count, &jobs]).green());
+    println!(
+        "\n{}",
+        i18n::t_fmt(I18nKey::RunningSafeCases, &[&safe_cases_count, &jobs]).green()
+    );
     let safe_stream = stream::iter(safe_cases.into_iter().map(|case| {
         let case_stop_token = fast_fail_token.clone();
         let global_stop_token = overall_stop_token.clone();
@@ -330,16 +375,18 @@ async fn run_tests(
             eprintln!("Task join error: {e:?}");
             runner::models::TestResult::Skipped
         });
-        if test_result.is_unexpected_failure()
-            && !fast_fail_token.is_cancelled() {
-                println!("\n{}", i18n::t(I18nKey::FastFailTriggered).red().bold());
-                fast_fail_token.cancel();
-            }
+        if test_result.is_unexpected_failure() && !fast_fail_token.is_cancelled() {
+            println!("\n{}", i18n::t(I18nKey::FastFailTriggered).red().bold());
+            fast_fail_token.cancel();
+        }
         results.push(test_result);
     }
 
     if !overall_stop_token.is_cancelled() && flaky_cases_count > 0 {
-        println!("\n{}", i18n::t_fmt(I18nKey::RunningFlakyCases, &[&flaky_cases_count, &jobs]).green());
+        println!(
+            "\n{}",
+            i18n::t_fmt(I18nKey::RunningFlakyCases, &[&flaky_cases_count, &jobs]).green()
+        );
         let flaky_stream = stream::iter(flaky_cases.into_iter().map(|case| {
             let global_stop_token = overall_stop_token.clone();
             let root = project_root.clone();

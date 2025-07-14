@@ -1,7 +1,7 @@
-use anyhow::{Context, Result};
 use crate::runner::i18n;
 use crate::runner::i18n::I18nKey;
 use crate::runner::models::BuildContext;
+use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
 use tempfile::TempDir;
@@ -88,8 +88,8 @@ pub fn create_build_dir(
         prefix = format!("{prefix}-{sanitized_features}");
     }
 
-    let temp_dir = TempDir::with_prefix(&prefix)
-        .with_context(|| i18n::t(I18nKey::CreateTempDirFailed))?;
+    let temp_dir =
+        TempDir::with_prefix(&prefix).with_context(|| i18n::t(I18nKey::CreateTempDirFailed))?;
     let target_path = temp_dir.path().to_path_buf();
 
     Ok(BuildContext {

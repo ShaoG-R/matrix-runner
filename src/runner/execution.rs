@@ -47,7 +47,10 @@ pub async fn run_test_case(
     // If a custom command is provided, we use the custom command flow.
     // The command is expected to handle both "build" and "test" logic.
     if let Some(custom_command) = &case.command {
-        println!("{}", i18n::t_fmt(I18nKey::RunningTest, &[&case.name]).blue());
+        println!(
+            "{}",
+            i18n::t_fmt(I18nKey::RunningTest, &[&case.name]).blue()
+        );
 
         let start_time = std::time::Instant::now();
 
@@ -55,22 +58,21 @@ pub async fn run_test_case(
             .with_context(|| format!("Failed to expand command: {custom_command}"))?
             .to_string();
 
-        let parts = shlex::split(&expanded_command).ok_or_else(|| {
-            anyhow::anyhow!("Failed to parse command: {}", expanded_command)
-        })?;
-        
+        let parts = shlex::split(&expanded_command)
+            .ok_or_else(|| anyhow::anyhow!("Failed to parse command: {}", expanded_command))?;
+
         if parts.is_empty() {
             return Err(anyhow::anyhow!("Empty command after parsing."));
         }
 
         let program = &parts[0];
         let args = &parts[1..];
-        
+
         let mut cmd = tokio::process::Command::new(program);
         cmd.args(args);
         cmd.kill_on_drop(true);
         cmd.current_dir(project_root);
-        
+
         let (status_res, output) = spawn_and_capture(cmd).await;
         let status = status_res.context("Failed to get process status")?;
         let duration = start_time.elapsed();
@@ -143,7 +145,10 @@ async fn build_test_case(
     project_root: &PathBuf,
     crate_name: &str,
 ) -> Result<BuiltTest> {
-    println!("{}", i18n::t_fmt(I18nKey::BuildingTest, &[&case.name]).blue());
+    println!(
+        "{}",
+        i18n::t_fmt(I18nKey::BuildingTest, &[&case.name]).blue()
+    );
 
     let build_ctx = create_build_dir(crate_name, &case.features, case.no_default_features)?;
 
@@ -196,7 +201,8 @@ async fn build_test_case(
         );
 
         if error_dir_path.exists() {
-            fs::remove_dir_all(&error_dir_path).context(i18n::t(I18nKey::CleanupOldArtifactsFailed).to_string())?;
+            fs::remove_dir_all(&error_dir_path)
+                .context(i18n::t(I18nKey::CleanupOldArtifactsFailed).to_string())?;
         }
 
         copy_dir_all(&build_ctx.target_path, &error_dir_path)
@@ -220,7 +226,10 @@ async fn build_test_case(
         })
         .context(i18n::t(I18nKey::FindExecutableFailed))?;
 
-    println!("{}", i18n::t_fmt(I18nKey::BuildSuccessful, &[&case.name]).green());
+    println!(
+        "{}",
+        i18n::t_fmt(I18nKey::BuildSuccessful, &[&case.name]).green()
+    );
 
     Ok(BuiltTest {
         case,
@@ -249,7 +258,10 @@ async fn run_built_test(built_test: BuiltTest, project_root: &PathBuf) -> Result
     let _build_ctx = built_test.build_ctx; // Transferred ownership for cleanup
 
     let start_time = std::time::Instant::now();
-    println!("{}", i18n::t_fmt(I18nKey::RunningTest, &[&case.name]).blue());
+    println!(
+        "{}",
+        i18n::t_fmt(I18nKey::RunningTest, &[&case.name]).blue()
+    );
 
     let mut cmd = tokio::process::Command::new(&executable);
     cmd.kill_on_drop(true);
@@ -291,8 +303,12 @@ async fn run_built_test(built_test: BuiltTest, project_root: &PathBuf) -> Result
                 "{}",
                 i18n::t_fmt(I18nKey::PreservingArtifacts, &[&error_dir_path.display()]).yellow()
             );
-            copy_dir_all(&_build_ctx.target_path, &error_dir_path)
-                .unwrap_or_else(|e| eprintln!("{}", i18n::t_fmt(I18nKey::CopyArtifactsFailed, &[&case.name, &e.to_string()])));
+            copy_dir_all(&_build_ctx.target_path, &error_dir_path).unwrap_or_else(|e| {
+                eprintln!(
+                    "{}",
+                    i18n::t_fmt(I18nKey::CopyArtifactsFailed, &[&case.name, &e.to_string()])
+                )
+            });
         }
 
         Ok(TestResult::Failed {

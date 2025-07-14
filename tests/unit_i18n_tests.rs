@@ -74,7 +74,7 @@ mod translation_tests {
     #[test]
     fn test_basic_translation_english() {
         i18n::init("en");
-        
+
         let result = i18n::t(i18n::I18nKey::TestingCrate);
         assert!(!result.is_empty());
         assert!(result.contains("Testing crate:"));
@@ -83,7 +83,7 @@ mod translation_tests {
     #[test]
     fn test_basic_translation_chinese() {
         i18n::init("zh-CN");
-        
+
         let result = i18n::t(i18n::I18nKey::TestingCrate);
         assert!(!result.is_empty());
         assert!(result.contains("正在测试的 Crate:"));
@@ -92,7 +92,7 @@ mod translation_tests {
     #[test]
     fn test_formatted_translation_english() {
         i18n::init("en");
-        
+
         let crate_name = "test-crate";
         let result = i18n::t_fmt(i18n::I18nKey::TestingCrate, &[&crate_name]);
         assert!(!result.is_empty());
@@ -102,7 +102,7 @@ mod translation_tests {
     #[test]
     fn test_formatted_translation_chinese() {
         i18n::init("zh-CN");
-        
+
         let crate_name = "测试包";
         let result = i18n::t_fmt(i18n::I18nKey::TestingCrate, &[&crate_name]);
         assert!(!result.is_empty());
@@ -112,7 +112,7 @@ mod translation_tests {
     #[test]
     fn test_multiple_arguments_formatting() {
         i18n::init("en");
-        
+
         let arg1 = "first";
         let arg2 = "second";
         let result = i18n::t_fmt(i18n::I18nKey::SystemLanguageDetected, &[&arg1, &arg2]);
@@ -124,7 +124,7 @@ mod translation_tests {
     #[test]
     fn test_numeric_arguments_formatting() {
         i18n::init("en");
-        
+
         let number = 42;
         let result = i18n::t_fmt(i18n::I18nKey::SystemLanguageDetected, &[&number]);
         assert!(!result.is_empty());
@@ -154,10 +154,10 @@ mod language_detection_tests {
     #[test]
     fn test_detect_system_language_integration() {
         let detected = i18n::detect_system_language();
-        
+
         // Initialize with detected language
         i18n::init(&detected);
-        
+
         // Should be able to get translations
         let result = i18n::t(i18n::I18nKey::ProjectRootDetected);
         assert!(!result.is_empty());
@@ -178,7 +178,7 @@ mod error_handling_tests {
     #[test]
     fn test_formatting_with_empty_args() {
         i18n::init("en");
-        
+
         let result = i18n::t_fmt(i18n::I18nKey::ProjectRootDetected, &[]);
         assert!(!result.is_empty());
         // Should still work even with no arguments
@@ -187,10 +187,13 @@ mod error_handling_tests {
     #[test]
     fn test_formatting_with_mismatched_args() {
         i18n::init("en");
-        
+
         // Provide more arguments than placeholders
         let extra_arg = "extra";
-        let result = i18n::t_fmt(i18n::I18nKey::ProjectRootDetected, &[&extra_arg, &extra_arg]);
+        let result = i18n::t_fmt(
+            i18n::I18nKey::ProjectRootDetected,
+            &[&extra_arg, &extra_arg],
+        );
         assert!(!result.is_empty());
         // Should not crash
     }
@@ -199,8 +202,8 @@ mod error_handling_tests {
 #[cfg(test)]
 mod concurrent_access_tests {
     use super::*;
-    use std::thread;
     use std::sync::Arc;
+    use std::thread;
 
     #[test]
     fn test_concurrent_init_and_translate() {
@@ -223,13 +226,9 @@ mod concurrent_access_tests {
     #[test]
     fn test_concurrent_translations() {
         i18n::init("en");
-        
+
         let handles: Vec<_> = (0..10)
-            .map(|_| {
-                thread::spawn(|| {
-                    i18n::t(i18n::I18nKey::TestingCrate)
-                })
-            })
+            .map(|_| thread::spawn(|| i18n::t(i18n::I18nKey::TestingCrate)))
             .collect();
 
         for handle in handles {
@@ -242,9 +241,9 @@ mod concurrent_access_tests {
     #[test]
     fn test_concurrent_formatted_translations() {
         i18n::init("en");
-        
+
         let shared_arg = Arc::new("shared-value".to_string());
-        
+
         let handles: Vec<_> = (0..5)
             .map(|i| {
                 let arg = Arc::clone(&shared_arg);

@@ -82,10 +82,7 @@ pub fn format_build_error_output(raw_output: &str) -> String {
 /// - 合并的 stdout 和 stderr，为一个 `String`。
 pub async fn spawn_and_capture(
     mut cmd: tokio::process::Command,
-) -> (
-    std::io::Result<std::process::ExitStatus>,
-    String,
-) {
+) -> (std::io::Result<std::process::ExitStatus>, String) {
     // Configure the command to capture stdout and stderr.
     // 配置命令以捕获 stdout 和 stderr。
     let mut child = match cmd
@@ -105,22 +102,18 @@ pub async fn spawn_and_capture(
         Some(stdout) => stdout,
         None => {
             return (
-                Err(std::io::Error::other(
-                    i18n::t(I18nKey::CaptureStdoutFailed),
-                )),
+                Err(std::io::Error::other(i18n::t(I18nKey::CaptureStdoutFailed))),
                 String::new(),
-            )
+            );
         }
     };
     let stderr = match child.stderr.take() {
         Some(stderr) => stderr,
         None => {
             return (
-                Err(std::io::Error::other(
-                    i18n::t(I18nKey::CaptureStderrFailed),
-                )),
+                Err(std::io::Error::other(i18n::t(I18nKey::CaptureStderrFailed))),
                 String::new(),
-            )
+            );
         }
     };
 

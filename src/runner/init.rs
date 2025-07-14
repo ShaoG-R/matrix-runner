@@ -1,4 +1,3 @@
-
 //! # Test Matrix Initialization Module / 测试矩阵初始化模块
 //!
 //! This module provides functionality for initializing a new test matrix configuration
@@ -22,7 +21,7 @@
 
 use anyhow::{Context, Result};
 use colored::*;
-use dialoguer::{theme::ColorfulTheme, Confirm, Input, MultiSelect};
+use dialoguer::{Confirm, Input, MultiSelect, theme::ColorfulTheme};
 use serde::Deserialize;
 use std::fs;
 use std::path::Path;
@@ -91,10 +90,7 @@ struct Manifest {
 /// 此函数提供逐步指导过程，用于创建带有用户选择的测试用例模板的新测试矩阵配置文件。
 pub fn run_init_wizard(language: &str) -> Result<()> {
     let theme = ColorfulTheme::default();
-    println!(
-        "\n{}",
-        i18n::t(I18nKey::InitWizardWelcome).bold().cyan()
-    );
+    println!("\n{}", i18n::t(I18nKey::InitWizardWelcome).bold().cyan());
     println!("{}\n", i18n::t(I18nKey::InitWizardDescription));
 
     // Check if configuration file already exists and get user confirmation
@@ -171,7 +167,10 @@ pub fn run_init_wizard(language: &str) -> Result<()> {
 fn confirm_overwrite(theme: &ColorfulTheme) -> Result<bool> {
     if Path::new(CONFIG_FILE_NAME).exists() {
         Confirm::with_theme(theme)
-            .with_prompt(i18n::t_fmt(I18nKey::InitOverwritePrompt, &[&CONFIG_FILE_NAME]))
+            .with_prompt(i18n::t_fmt(
+                I18nKey::InitOverwritePrompt,
+                &[&CONFIG_FILE_NAME],
+            ))
             .interact()
             .context(i18n::t(I18nKey::InitUserConfirmationFailed).to_string())
     } else {
@@ -208,10 +207,10 @@ fn confirm_overwrite(theme: &ColorfulTheme) -> Result<bool> {
 /// 此函数通过解析当前目录中的 Cargo.toml 文件来自动确定当前 Rust crate 的名称。
 fn detect_crate_name() -> Result<String> {
     let manifest_path = "Cargo.toml";
-    let manifest_content =
-        fs::read_to_string(manifest_path).context(i18n::t(I18nKey::InitCargoTomlNotFound).to_string())?;
-    let manifest: Manifest =
-        toml::from_str(&manifest_content).context(i18n::t(I18nKey::InitCargoTomlParseFailed).to_string())?;
+    let manifest_content = fs::read_to_string(manifest_path)
+        .context(i18n::t(I18nKey::InitCargoTomlNotFound).to_string())?;
+    let manifest: Manifest = toml::from_str(&manifest_content)
+        .context(i18n::t(I18nKey::InitCargoTomlParseFailed).to_string())?;
     Ok(manifest.package.name)
 }
 

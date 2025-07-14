@@ -25,7 +25,7 @@ use crate::runner::models::{FailureReason, TestResult};
 use anyhow::{Context, Result};
 use chrono::Local;
 use colored::*;
-use maud::{html, PreEscaped};
+use maud::{PreEscaped, html};
 use std::fs;
 use std::path::Path;
 
@@ -63,7 +63,12 @@ pub fn print_unexpected_failure_details(unexpected_failures: &[&TestResult]) {
     println!("{}", i18n::t(I18nKey::UnexpectedFailureBanner).red().bold());
 
     for result in unexpected_failures {
-        if let TestResult::Failed { case, output, reason } = result {
+        if let TestResult::Failed {
+            case,
+            output,
+            reason,
+        } = result
+        {
             println!(
                 "\n{}",
                 i18n::t_fmt(I18nKey::FailureDetailsFor, &[&case.name]).cyan()
@@ -88,7 +93,6 @@ pub fn print_unexpected_failure_details(unexpected_failures: &[&TestResult]) {
         "-----------------------------------------------------------------".cyan()
     );
 }
-
 
 /// CSS styles for the HTML test report.
 /// This constant contains all the styling rules for the generated HTML report,
@@ -432,10 +436,7 @@ pub fn print_summary(results: &[TestResult]) -> Vec<&TestResult> {
 
     // Display the summary banner
     // 显示摘要横幅
-    println!(
-        "\n{}",
-        i18n::t(I18nKey::FinalSummaryBanner).cyan()
-    );
+    println!("\n{}", i18n::t(I18nKey::FinalSummaryBanner).cyan());
 
     // Display successful tests if any
     // 如果有成功的测试则显示
@@ -469,23 +470,26 @@ pub fn print_summary(results: &[TestResult]) -> Vec<&TestResult> {
     // 如果有跳过的测试则显示
     if !skipped_tests.is_empty() {
         println!("\n{}", i18n::t(I18nKey::SummarySkippedTests).yellow());
-        println!("  - {}", i18n::t_fmt(I18nKey::SummarySkippedCount, &[&skipped_tests.len()]));
+        println!(
+            "  - {}",
+            i18n::t_fmt(I18nKey::SummarySkippedCount, &[&skipped_tests.len()])
+        );
     }
 
     // Display unexpected failures if any
     // 如果有意外失败则显示
     if !unexpected_failures.is_empty() {
-        println!("\n{}", i18n::t(I18nKey::SummaryUnexpectedFailures).red().bold());
+        println!(
+            "\n{}",
+            i18n::t(I18nKey::SummaryUnexpectedFailures).red().bold()
+        );
         for result in &unexpected_failures {
             if let TestResult::Failed { case, reason, .. } = result {
                 let failure_type = match reason {
                     FailureReason::Build => i18n::t(I18nKey::BuildFailure),
                     FailureReason::Test => i18n::t(I18nKey::TestFailure),
                 };
-                println!(
-                    "  - {}",
-                    format!("{} ({})", case.name.red(), failure_type)
-                );
+                println!("  - {}", format!("{} ({})", case.name.red(), failure_type));
             }
         }
     }

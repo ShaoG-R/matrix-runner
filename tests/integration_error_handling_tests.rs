@@ -8,9 +8,9 @@
 
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
+use std::fs;
 use std::process::Command;
 use tempfile::TempDir;
-use std::fs;
 
 /// Helper function to create an invalid TOML configuration
 /// 创建无效TOML配置的辅助函数
@@ -95,44 +95,42 @@ mod config_error_tests {
             .arg("nonexistent_file.toml")
             .arg("--project-dir")
             .arg("tests/sample_project");
-        
-        cmd.assert()
-            .failure()
-            .stderr(predicate::str::contains("No such file or directory")
+
+        cmd.assert().failure().stderr(
+            predicate::str::contains("No such file or directory")
                 .or(predicate::str::contains("cannot find the file"))
-                .or(predicate::str::contains("系统找不到指定的文件")));
+                .or(predicate::str::contains("系统找不到指定的文件")),
+        );
     }
 
     #[test]
     fn test_invalid_toml_syntax() {
         let temp_dir = TempDir::new().unwrap();
         let matrix_path = create_invalid_toml(&temp_dir);
-        
+
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
             .arg("tests/sample_project");
-        
-        cmd.assert()
-            .failure();
+
+        cmd.assert().failure();
     }
 
     #[test]
     fn test_incomplete_config() {
         let temp_dir = TempDir::new().unwrap();
         let matrix_path = create_incomplete_config(&temp_dir);
-        
+
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
             .arg("tests/sample_project");
-        
-        cmd.assert()
-            .failure();
+
+        cmd.assert().failure();
     }
 
     #[test]
@@ -140,16 +138,15 @@ mod config_error_tests {
         let temp_dir = TempDir::new().unwrap();
         let matrix_path = temp_dir.path().join("empty.toml");
         fs::write(&matrix_path, "").unwrap();
-        
+
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
             .arg("tests/sample_project");
-        
-        cmd.assert()
-            .failure();
+
+        cmd.assert().failure();
     }
 
     #[test]
@@ -161,14 +158,14 @@ language = "en"
 cases = []
 "#;
         fs::write(&matrix_path, content).unwrap();
-        
+
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
             .arg("tests/sample_project");
-        
+
         cmd.assert()
             .success()
             .stdout(predicate::str::contains("No test cases to run"));
@@ -192,16 +189,15 @@ features = ""
 no_default_features = false
 "#;
         fs::write(&matrix_path, content).unwrap();
-        
+
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
             .arg("nonexistent_project_directory");
-        
-        cmd.assert()
-            .failure();
+
+        cmd.assert().failure();
     }
 
     #[test]
@@ -209,7 +205,7 @@ no_default_features = false
         let temp_dir = TempDir::new().unwrap();
         let project_dir = temp_dir.path().join("no_cargo_project");
         fs::create_dir_all(&project_dir).unwrap();
-        
+
         let matrix_path = temp_dir.path().join("valid.toml");
         let content = r#"
 language = "en"
@@ -220,16 +216,15 @@ features = ""
 no_default_features = false
 "#;
         fs::write(&matrix_path, content).unwrap();
-        
+
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
             .arg(&project_dir);
-        
-        cmd.assert()
-            .failure();
+
+        cmd.assert().failure();
     }
 
     #[test]
@@ -237,11 +232,11 @@ no_default_features = false
         let temp_dir = TempDir::new().unwrap();
         let project_dir = temp_dir.path().join("invalid_cargo_project");
         fs::create_dir_all(&project_dir).unwrap();
-        
+
         // Create invalid Cargo.toml
         let cargo_toml = project_dir.join("Cargo.toml");
         fs::write(&cargo_toml, "invalid toml content [[[").unwrap();
-        
+
         let matrix_path = temp_dir.path().join("valid.toml");
         let content = r#"
 language = "en"
@@ -252,16 +247,15 @@ features = ""
 no_default_features = false
 "#;
         fs::write(&matrix_path, content).unwrap();
-        
+
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
             .arg(&project_dir);
-        
-        cmd.assert()
-            .failure();
+
+        cmd.assert().failure();
     }
 }
 
@@ -273,12 +267,10 @@ mod command_error_tests {
     fn test_invalid_custom_command() {
         let temp_dir = TempDir::new().unwrap();
         let matrix_path = create_invalid_command_config(&temp_dir);
-        
+
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
-        cmd.arg("run")
-            .arg("--config")
-            .arg(&matrix_path);
-        
+        cmd.arg("run").arg("--config").arg(&matrix_path);
+
         cmd.assert()
             .failure()
             .stdout(predicate::str::contains("UNEXPECTED FAILURE DETECTED"));
@@ -298,12 +290,10 @@ features = ""
 no_default_features = false
 "#;
         fs::write(&matrix_path, content).unwrap();
-        
+
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
-        cmd.arg("run")
-            .arg("--config")
-            .arg(&matrix_path);
-        
+        cmd.arg("run").arg("--config").arg(&matrix_path);
+
         // This might succeed or fail depending on the echo implementation
         // We just want to ensure it doesn't crash
         let output = cmd.output().unwrap();
@@ -319,18 +309,21 @@ mod architecture_filtering_tests {
     fn test_architecture_filtering() {
         let temp_dir = TempDir::new().unwrap();
         let matrix_path = create_arch_filtered_config(&temp_dir);
-        
+
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
             .arg("tests/sample_project");
-        
+
         cmd.assert()
             .success()
-            .stdout(predicate::str::contains("Filtered out")
-                .and(predicate::str::contains("test case(s) based on current architecture")));
+            .stdout(
+                predicate::str::contains("Filtered out").and(predicate::str::contains(
+                    "test case(s) based on current architecture",
+                )),
+            );
     }
 
     #[test]
@@ -353,14 +346,14 @@ no_default_features = false
 arch = ["nonexistent_arch_2"]
 "#;
         fs::write(&matrix_path, content).unwrap();
-        
+
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
             .arg("tests/sample_project");
-        
+
         cmd.assert()
             .success()
             .stdout(predicate::str::contains("No test cases to run"));
@@ -376,23 +369,26 @@ mod edge_case_tests {
         let temp_dir = TempDir::new().unwrap();
         let matrix_path = temp_dir.path().join("long_name.toml");
         let long_name = "a".repeat(1000); // Very long case name
-        let content = format!(r#"
+        let content = format!(
+            r#"
 language = "en"
 
 [[cases]]
 name = "{}"
 features = ""
 no_default_features = false
-"#, long_name);
+"#,
+            long_name
+        );
         fs::write(&matrix_path, content).unwrap();
-        
+
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
             .arg("tests/sample_project");
-        
+
         cmd.assert()
             .success()
             .stdout(predicate::str::contains("TEST MATRIX PASSED SUCCESSFULLY"));
@@ -416,14 +412,14 @@ features = ""
 no_default_features = false
 "#;
         fs::write(&matrix_path, content).unwrap();
-        
+
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
             .arg("tests/sample_project");
-        
+
         cmd.assert()
             .success()
             .stdout(predicate::str::contains("测试矩阵执行成功"));
@@ -442,14 +438,14 @@ features = "feature-with-dashes,feature_with_underscores,feature123"
 no_default_features = false
 "#;
         fs::write(&matrix_path, content).unwrap();
-        
+
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
             .arg("tests/sample_project");
-        
+
         cmd.assert()
             .success()
             .stdout(predicate::str::contains("TEST MATRIX PASSED SUCCESSFULLY"));

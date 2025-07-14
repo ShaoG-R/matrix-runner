@@ -132,8 +132,6 @@ fn is_supported_language(lang_code: &str) -> bool {
     matches!(lang_code, "en" | "zh-CN")
 }
 
-
-
 /// 一个支持 {n} 和 {} 两种占位符的格式化函数。
 ///
 /// ## 参数
@@ -250,7 +248,9 @@ fn fmt_core(s: &str, args: &[&dyn fmt::Display]) -> String {
 
     // --- 构建阶段 ---
     // 创建一个迭代器，只提供未被带编号占位符使用的参数
-    let mut unindexed_args = args.iter().enumerate()
+    let mut unindexed_args = args
+        .iter()
+        .enumerate()
         .filter(|(i, _)| !used_by_index[*i])
         .map(|(_, arg)| arg);
 
@@ -274,7 +274,6 @@ fn fmt_core(s: &str, args: &[&dyn fmt::Display]) -> String {
 
     result
 }
-
 
 // 仅在运行 `cargo test` 时编译此模块
 #[cfg(test)]
@@ -377,7 +376,10 @@ mod tests {
     fn test_reuse_numbered_placeholder() {
         let s = "Name: {0}, please confirm your name is {0}.";
         let name = "David";
-        assert_eq!(fmt_core(s, &[&name]), "Name: David, please confirm your name is David.");
+        assert_eq!(
+            fmt_core(s, &[&name]),
+            "Name: David, please confirm your name is David."
+        );
     }
 
     #[test]
