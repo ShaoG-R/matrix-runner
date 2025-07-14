@@ -77,18 +77,18 @@ pub fn create_build_dir(
     // when debugging. e.g., "my-crate-std" or "my-crate-no-std-feature-x"
     // 为临时目录创建一个描述性的前缀，以便在调试时更容易识别。
     // 例如："my-crate-std" 或 "my-crate-no-std-feature-x"
-    let mut prefix = format!("{}-{}", crate_name, build_type);
+    let mut prefix = format!("{crate_name}-{build_type}");
     if !features.is_empty() {
         // Sanitize features for the directory name.
         // This is simpler than hashing and more readable.
         // 为目录名清理 features 字符串。
         // 这比哈希更简单且更具可读性。
         let sanitized_features = features.replace(|c: char| !c.is_alphanumeric(), "_");
-        prefix = format!("{}-{}", prefix, sanitized_features);
+        prefix = format!("{prefix}-{sanitized_features}");
     }
 
     let temp_dir =
-        TempDir::with_prefix(&prefix).expect(&i18n::t(I18nKey::CreateTempDirFailed));
+        TempDir::with_prefix(&prefix).unwrap_or_else(|_| { panic!("{}", i18n::t(I18nKey::CreateTempDirFailed)) });
     let target_path = temp_dir.path().to_path_buf();
 
     BuildContext {

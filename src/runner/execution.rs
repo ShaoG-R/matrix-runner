@@ -52,7 +52,7 @@ pub async fn run_test_case(
         let start_time = std::time::Instant::now();
 
         let expanded_command = shellexpand::full(custom_command)
-            .with_context(|| format!("Failed to expand command: {}", custom_command))?
+            .with_context(|| format!("Failed to expand command: {custom_command}"))?
             .to_string();
 
         let parts = shlex::split(&expanded_command).ok_or_else(|| {
@@ -85,7 +85,7 @@ pub async fn run_test_case(
                 "{}",
                 i18n::t_fmt(
                     I18nKey::TestPassed,
-                    &[&case.name, &format!("{:.2?}", duration)]
+                    &[&case.name, &format!("{duration:.2?}")]
                 )
                 .green()
             );
@@ -95,7 +95,7 @@ pub async fn run_test_case(
                 "{}",
                 i18n::t_fmt(
                     I18nKey::TestFailed,
-                    &[&case.name, &format!("{:.2?}", duration)]
+                    &[&case.name, &format!("{duration:.2?}")]
                 )
                 .red()
             );
@@ -200,7 +200,7 @@ async fn build_test_case(
         }
 
         copy_dir_all(&build_ctx.target_path, &error_dir_path)
-            .context(format!("{}", i18n::t_fmt(I18nKey::CopyArtifactsFailed, &[&case.name, &""])))?;
+            .context(i18n::t_fmt(I18nKey::CopyArtifactsFailed, &[&case.name, &""]).to_string())?;
 
         return Err(anyhow::anyhow!(output));
     }
@@ -264,7 +264,7 @@ async fn run_built_test(built_test: BuiltTest, project_root: &PathBuf) -> TestRe
             "{}",
             i18n::t_fmt(
                 I18nKey::TestPassed,
-                &[&case.name, &format!("{:.2?}", duration)]
+                &[&case.name, &format!("{duration:.2?}")]
             )
             .green()
         );
@@ -274,7 +274,7 @@ async fn run_built_test(built_test: BuiltTest, project_root: &PathBuf) -> TestRe
             "{}",
             i18n::t_fmt(
                 I18nKey::TestFailed,
-                &[&case.name, &format!("{:.2?}", duration)]
+                &[&case.name, &format!("{duration:.2?}")]
             )
             .red()
         );

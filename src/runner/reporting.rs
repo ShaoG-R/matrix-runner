@@ -35,7 +35,7 @@ pub fn print_unexpected_failure_details(unexpected_failures: &[&TestResult]) {
                 FailureReason::Build => format_build_error_output(output),
                 FailureReason::Test => output.clone(),
             };
-            println!("{}", output_to_print);
+            println!("{output_to_print}");
         }
     }
 
@@ -274,7 +274,7 @@ pub fn generate_html_report(results: &[TestResult], output_path: &Path) -> Resul
     Ok(())
 }
 
-pub fn print_summary<'a>(results: &'a [TestResult]) -> Vec<&'a TestResult> {
+pub fn print_summary(results: &[TestResult]) -> Vec<&TestResult> {
     let mut successes = Vec::new();
     let mut allowed_failures = Vec::new();
     let mut unexpected_failures = Vec::new();

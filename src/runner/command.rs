@@ -105,8 +105,7 @@ pub async fn spawn_and_capture(
         Some(stdout) => stdout,
         None => {
             return (
-                Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                Err(std::io::Error::other(
                     i18n::t(I18nKey::CaptureStdoutFailed),
                 )),
                 String::new(),
@@ -117,8 +116,7 @@ pub async fn spawn_and_capture(
         Some(stderr) => stderr,
         None => {
             return (
-                Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                Err(std::io::Error::other(
                     i18n::t(I18nKey::CaptureStderrFailed),
                 )),
                 String::new(),

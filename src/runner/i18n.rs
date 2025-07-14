@@ -25,7 +25,7 @@ pub fn t_fmt(key: I18nKey, args: &[&dyn std::fmt::Display]) -> String {
     let base_translation = t(key);
     let mut result = base_translation;
     for (i, arg) in args.iter().enumerate() {
-        let placeholder = format!("{{{}}}", i);
+        let placeholder = format!("{{{i}}}");
         result = result.replace(&placeholder, &arg.to_string());
     }
     result

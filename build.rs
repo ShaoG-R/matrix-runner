@@ -52,7 +52,7 @@ fn main() {
     )
     .unwrap();
     for key in &base_keys {
-        write!(&mut final_code, "    {},\n", to_pascal_case(key)).unwrap();
+        writeln!(&mut final_code, "    {},", to_pascal_case(key)).unwrap();
     }
     write!(&mut final_code, "}}\n\n").unwrap();
 
@@ -62,18 +62,17 @@ fn main() {
         let content = fs::read_to_string(path).unwrap();
         let translations: Translations = toml::from_str(&content).unwrap();
         
-        write!(
+        writeln!(
             &mut final_code,
-            "pub fn get_translation_{}(key: I18nKey) -> &'static str {{\n",
-            lang_code
+            "pub fn get_translation_{lang_code}(key: I18nKey) -> &'static str {{"
         )
         .unwrap();
-        write!(&mut final_code, "    match key {{\n").unwrap();
+        writeln!(&mut final_code, "    match key {{").unwrap();
 
         for (key, value) in &translations.0 {
-            write!(
+            writeln!(
                 &mut final_code,
-                "        I18nKey::{} => r#\"{}\"#,\n",
+                "        I18nKey::{} => r#\"{}\"#,",
                 to_pascal_case(key),
                 value
             )
@@ -83,14 +82,14 @@ fn main() {
     }
     
     // Generate main dispatch function
-    write!(&mut final_code, "pub fn get_translation(lang: &str, key: I18nKey) -> &'static str {{\n").unwrap();
-    write!(&mut final_code, "    match lang {{\n").unwrap();
+    writeln!(&mut final_code, "pub fn get_translation(lang: &str, key: I18nKey) -> &'static str {{").unwrap();
+    writeln!(&mut final_code, "    match lang {{").unwrap();
     for path in &lang_files {
         let lang_code = path.file_stem().unwrap().to_str().unwrap();
         let fn_lang_code = lang_code.replace('-', "_").to_lowercase();
-        write!(&mut final_code, "        r#\"{}\"# => get_translation_{}(key),\n", lang_code, fn_lang_code).unwrap();
+        writeln!(&mut final_code, "        r#\"{lang_code}\"# => get_translation_{fn_lang_code}(key),").unwrap();
     }
-    write!(&mut final_code, "        _ => get_translation_en(key),\n").unwrap(); // Fallback to English
+    writeln!(&mut final_code, "        _ => get_translation_en(key),").unwrap(); // Fallback to English
     write!(&mut final_code, "    }}\n}}\n").unwrap();
 
 

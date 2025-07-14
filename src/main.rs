@@ -157,7 +157,7 @@ fn setup_and_parse_config(args: &RunArgs) -> (TestMatrix, PathBuf) {
     let config_content = fs::read_to_string(&config_path)
         .unwrap_or_else(|_| panic!("{}", i18n::t_fmt(I18nKey::ConfigReadFailedPath, &[&config_path.display()])));
     let test_matrix: TestMatrix =
-        toml::from_str(&config_content).expect(i18n::t(I18nKey::ConfigParseFailed).as_str());
+        toml::from_str(&config_content).unwrap_or_else(|_| { panic!("{}", i18n::t(I18nKey::ConfigParseFailed)) });
     (test_matrix, config_path)
 }
 
@@ -182,7 +182,7 @@ async fn prepare_environment(args: &RunArgs) -> (PathBuf, String) {
     let manifest_content = fs::read_to_string(&manifest_path).unwrap_or_else(|_| {
         panic!("{}", i18n::t_fmt(I18nKey::ManifestReadFailed, &[&manifest_path.display()]))
     });
-    let manifest: Manifest = toml::from_str(&manifest_content).expect(i18n::t(I18nKey::ManifestParseFailed).as_str());
+    let manifest: Manifest = toml::from_str(&manifest_content).unwrap_or_else(|_| { panic!("{}", i18n::t(I18nKey::ManifestParseFailed)) });
     let crate_name = manifest.package.name.replace('-', "_");
 
     (project_root, crate_name)
@@ -281,7 +281,7 @@ async fn run_tests(
         let name = crate_name.to_string();
         tokio::spawn(async move {
             tokio::select! {
-                res = run_test_case(case, &root, &name) => res.unwrap_or_else(|e| panic!("Task failed: {:?}", e)),
+                res = run_test_case(case, &root, &name) => res.unwrap_or_else(|e| panic!("Task failed: {e:?}")),
                 _ = case_stop_token.cancelled() => runner::models::TestResult::Skipped,
                 _ = global_stop_token.cancelled() => runner::models::TestResult::Skipped,
             }
@@ -291,12 +291,11 @@ async fn run_tests(
     let mut safe_processed_stream = safe_stream.buffer_unordered(jobs);
     while let Some(result) = safe_processed_stream.next().await {
         let test_result = result.unwrap();
-        if test_result.is_unexpected_failure() {
-            if !fast_fail_token.is_cancelled() {
+        if test_result.is_unexpected_failure()
+            && !fast_fail_token.is_cancelled() {
                 println!("\n{}", i18n::t(I18nKey::FastFailTriggered).red().bold());
                 fast_fail_token.cancel();
             }
-        }
         results.push(test_result);
     }
 
@@ -308,7 +307,7 @@ async fn run_tests(
             let name = crate_name.to_string();
             tokio::spawn(async move {
                 tokio::select! {
-                    res = run_test_case(case, &root, &name) => res.unwrap_or_else(|e| panic!("Task failed: {:?}", e)),
+                    res = run_test_case(case, &root, &name) => res.unwrap_or_else(|e| panic!("Task failed: {e:?}")),
                     _ = global_stop_token.cancelled() => runner::models::TestResult::Skipped,
                 }
             })

@@ -103,7 +103,7 @@ fn test_html_report_generation() -> Result<(), Box<dyn std::error::Error>> {
         .arg("--project-dir")
         .arg("tests/sample_project")
         .arg("--html")
-        .arg(&report_path);
+        .arg(report_path);
 
     // Get output instead of just asserting success, for better debugging.
     let output = cmd.output()?;
@@ -112,14 +112,13 @@ fn test_html_report_generation() -> Result<(), Box<dyn std::error::Error>> {
 
     // Print stderr for debugging purposes, even on success.
     if !stderr.is_empty() {
-        eprintln!("matrix-runner stderr:\n---\n{}\n---", stderr);
+        eprintln!("matrix-runner stderr:\n---\n{stderr}\n---");
     }
 
     // Assert that the command was successful and that it mentioned generating a report.
     assert!(
         output.status.success(),
-        "Command did not run successfully. Stderr: {}",
-        stderr
+        "Command did not run successfully. Stderr: {stderr}"
     );
     assert!(
         stdout.contains("Generating HTML report"),

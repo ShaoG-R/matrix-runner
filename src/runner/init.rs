@@ -51,12 +51,12 @@ pub fn run_init_wizard() -> Result<()> {
         .context("Failed to serialize configuration to TOML.")?;
 
     fs::write(CONFIG_FILE_NAME, toml_string)
-        .with_context(|| format!("Failed to write to {}", CONFIG_FILE_NAME))?;
+        .with_context(|| format!("Failed to write to {CONFIG_FILE_NAME}"))?;
 
     println!(
         "\n{} {}",
         "✔".green(),
-        format!("Successfully created `{}`.", CONFIG_FILE_NAME).bold()
+        format!("Successfully created `{CONFIG_FILE_NAME}`.").bold()
     );
     println!("You can now run `matrix-runner` to execute your test matrix.");
 
@@ -68,8 +68,7 @@ fn confirm_overwrite(theme: &ColorfulTheme) -> Result<bool> {
     if Path::new(CONFIG_FILE_NAME).exists() {
         Confirm::with_theme(theme)
             .with_prompt(format!(
-                "`{}` already exists. Do you want to overwrite it?",
-                CONFIG_FILE_NAME
+                "`{CONFIG_FILE_NAME}` already exists. Do you want to overwrite it?"
             ))
             .interact()
             .context("Failed to get user confirmation.")
