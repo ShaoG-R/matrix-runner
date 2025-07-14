@@ -11,6 +11,7 @@ A powerful, configuration-driven test runner for Rust projects to execute tests 
 - **Distributed Testing**: Natively supports splitting the test matrix across multiple CI runners.
 - **Target Filtering**: Automatically selects tests to run based on the host's architecture (`x86`, `x86_64`, `aarch64`, etc.).
 - **Failure Artifacts**: Failed test runs leave their build artifacts in a `target-errors` directory for easy debugging.
+- **Internationalization (i18n)**: Console output supports multiple languages (currently English and Chinese).
 
 ## Why `matrix-runner`?
 
@@ -54,7 +55,11 @@ matrix-runner --total-runners 2 --runner-index 1
 
 ## Configuration (`TestMatrix.toml`)
 
-The behavior of `matrix-runner` is controlled by a TOML file (e.g., `TestMatrix.toml`). This file contains an array of `[[cases]]`, where each case represents a single `cargo test` invocation with a specific configuration.
+The behavior of `matrix-runner` is controlled by a TOML file (e.g., `TestMatrix.toml`). This file contains global settings and an array of `[[cases]]`, where each case represents a single `cargo test` invocation with a specific configuration.
+
+### Global Settings
+
+- `language` (String, optional): Sets the output language for the console. Supports `"en"` and `"zh-CN"`. Defaults to `"en"`.
 
 ### Case Parameters:
 
@@ -68,6 +73,9 @@ The behavior of `matrix-runner` is controlled by a TOML file (e.g., `TestMatrix.
 
 ```toml
 # TestMatrix.toml
+
+# Global setting for output language
+language = "zh-CN"
 
 # A basic case with default features
 [[cases]]

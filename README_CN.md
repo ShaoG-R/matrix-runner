@@ -11,6 +11,7 @@
 - **分布式测试**: 原生支持在多个 CI 执行器之间拆分测试矩阵。
 - **目标过滤**: 根据主机的体系结构（`x86`、`x86_64`、`aarch64` 等）自动选择要运行的测试。
 - **失败产物**: 失败的测试运行会将其构建产物保留在 `target-errors` 目录中，以便于调试。
+- **国际化 (i18n)**: 控制台输出支持多语言（当前支持英文和中文）。
 
 ## 为何选择 `matrix-runner`？
 
@@ -54,7 +55,11 @@ matrix-runner --total-runners 2 --runner-index 1
 
 ## 配置 (`TestMatrix.toml`)
 
-`matrix-runner` 的行为由一个 TOML 文件（例如 `TestMatrix.toml`）控制。该文件包含一个 `[[cases]]` 数组，其中每个 case 代表一个具有特定配置的 `cargo test` 调用。
+`matrix-runner` 的行为由一个 TOML 文件（例如 `TestMatrix.toml`）控制。该文件包含全局设置和 `[[cases]]` 数组，其中每个 case 代表一个具有特定配置的 `cargo test` 调用。
+
+### 全局设置
+
+- `language` (字符串, 可选): 设置控制台的输出语言。支持 `"en"` 和 `"zh-CN"`。默认为 `"en"`。
 
 ### Case 参数:
 
@@ -68,6 +73,9 @@ matrix-runner --total-runners 2 --runner-index 1
 
 ```toml
 # TestMatrix.toml
+
+# 用于设置输出语言的全局配置
+language = "zh-CN"
 
 # 一个使用默认功能的基本用例
 [[cases]]
