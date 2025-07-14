@@ -121,7 +121,7 @@ pub async fn run_test_case(
         }
     };
 
-    Ok(run_built_test(built_test, project_root).await)
+    Ok(run_built_test(built_test, project_root).await?)
 }
 
 /// Builds a single test case using `cargo test --no-run`.
@@ -145,7 +145,7 @@ async fn build_test_case(
 ) -> Result<BuiltTest> {
     println!("{}", i18n::t_fmt(I18nKey::BuildingTest, &[&case.name]).blue());
 
-    let build_ctx = create_build_dir(crate_name, &case.features, case.no_default_features);
+    let build_ctx = create_build_dir(crate_name, &case.features, case.no_default_features)?;
 
     let mut cmd = tokio::process::Command::new("cargo");
     cmd.kill_on_drop(true);
@@ -243,7 +243,7 @@ async fn build_test_case(
 /// # Returns
 /// 一个 `Result<TestResult, TestResult>`，指示执行结果。成功时，临时构建目录会被清理。
 /// 失败时，它将被保留。
-async fn run_built_test(built_test: BuiltTest, project_root: &PathBuf) -> TestResult {
+async fn run_built_test(built_test: BuiltTest, project_root: &PathBuf) -> Result<TestResult> {
     let case = built_test.case;
     let executable = built_test.executable;
     let _build_ctx = built_test.build_ctx; // Transferred ownership for cleanup
@@ -255,7 +255,7 @@ async fn run_built_test(built_test: BuiltTest, project_root: &PathBuf) -> TestRe
     cmd.kill_on_drop(true);
 
     let (status_res, output) = spawn_and_capture(cmd).await;
-    let status = status_res.expect("Failed to get process status");
+    let status = status_res.context("Failed to get process status")?;
 
     let duration = start_time.elapsed();
 
@@ -268,7 +268,7 @@ async fn run_built_test(built_test: BuiltTest, project_root: &PathBuf) -> TestRe
             )
             .green()
         );
-        TestResult::Passed { case, output }
+        Ok(TestResult::Passed { case, output })
     } else {
         println!(
             "{}",
@@ -295,10 +295,10 @@ async fn run_built_test(built_test: BuiltTest, project_root: &PathBuf) -> TestRe
                 .unwrap_or_else(|e| eprintln!("{}", i18n::t_fmt(I18nKey::CopyArtifactsFailed, &[&case.name, &e.to_string()])));
         }
 
-        TestResult::Failed {
+        Ok(TestResult::Failed {
             case,
             output,
             reason: FailureReason::Test,
-        }
+        })
     }
 }

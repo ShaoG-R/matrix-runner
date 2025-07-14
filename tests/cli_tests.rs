@@ -131,7 +131,7 @@ fn test_html_report_generation() -> Result<(), Box<dyn std::error::Error>> {
     );
     let report_content = fs::read_to_string(report_path)?;
     assert!(
-        report_content.contains("<title>Test Report</title>"),
+        report_content.contains("<title>Test Matrix Report</title>"),
         "HTML report content is invalid"
     );
     

@@ -160,8 +160,12 @@ pub async fn spawn_and_capture(
 
     // Wait for the stdout and stderr reading tasks to complete to ensure all output is captured.
     // 等待 stdout 和 stderr 读取任务完成，以确保所有输出都被捕获。
-    stdout_handle.await.unwrap();
-    stderr_handle.await.unwrap();
+    if let Err(e) = stdout_handle.await {
+        eprintln!("Failed to join stdout task: {}", e);
+    }
+    if let Err(e) = stderr_handle.await {
+        eprintln!("Failed to join stderr task: {}", e);
+    }
 
     (status, output.lock().await.clone())
 }

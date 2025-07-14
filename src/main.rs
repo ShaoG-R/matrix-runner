@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use colored::*;
 use futures::{StreamExt, stream};
@@ -87,11 +88,18 @@ struct Manifest {
 
 #[tokio::main]
 async fn main() {
+    if let Err(e) = run_main().await {
+        eprintln!("{} {}", "Error:".red(), e);
+        std::process::exit(1);
+    }
+}
+
+async fn run_main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
         Commands::Run(args) => {
-            run_matrix_tests(args).await;
+            run_matrix_tests(args).await?;
         }
         Commands::Init(args) => {
             // Determine the language to use: user-specified or auto-detected
@@ -110,27 +118,25 @@ async fn main() {
                 println!("🌐 {}", i18n::t_fmt(I18nKey::SystemLanguageDetected, &[&language]));
             }
 
-            if let Err(e) = init::run_init_wizard(&language) {
-                eprintln!("{} {}", "Error:".red(), e);
-                std::process::exit(1);
-            }
+            init::run_init_wizard(&language)?;
         }
     }
+    Ok(())
 }
 
-async fn run_matrix_tests(args: RunArgs) {
-    let (test_matrix, config_path) = setup_and_parse_config(&args);
+async fn run_matrix_tests(args: RunArgs) -> Result<()> {
+    let (test_matrix, config_path) = setup_and_parse_config(&args)?;
     i18n::init(&test_matrix.language);
 
-    let (project_root, crate_name) = prepare_environment(&args).await;
+    let (project_root, crate_name) = prepare_environment(&args).await?;
 
     println!("{}", i18n::t_fmt(I18nKey::ProjectRootDetected, &[&project_root.display()]));
     println!("{}", i18n::t_fmt(I18nKey::TestingCrate, &[&crate_name.yellow()]));
     println!("{}", i18n::t_fmt(I18nKey::LoadingTestMatrix, &[&config_path.display()]));
 
-    let overall_stop_token = setup_signal_handler();
+    let overall_stop_token = setup_signal_handler()?;
 
-    let cases_to_run = filter_and_distribute_cases(test_matrix, &args);
+    let cases_to_run = filter_and_distribute_cases(test_matrix, &args)?;
     if cases_to_run.is_empty() {
         println!("{}", i18n::t(I18nKey::NoCasesToRun).green());
         std::process::exit(0);
@@ -143,7 +149,7 @@ async fn run_matrix_tests(args: RunArgs) {
         &crate_name,
         overall_stop_token,
     )
-    .await;
+    .await?;
 
     print_summary(&final_results);
 
@@ -169,64 +175,66 @@ async fn run_matrix_tests(args: RunArgs) {
 
 /// Sets up command-line arguments and loads the test matrix configuration.
 /// 设置命令行参数并加载测试矩阵配置。
-fn setup_and_parse_config(args: &RunArgs) -> (TestMatrix, PathBuf) {
-    let config_path = fs::canonicalize(&args.config).unwrap_or_else(|e| {
-        panic!(
-            "{}: {}",
-            i18n::t_fmt(I18nKey::ConfigReadFailedPath, &[&args.config.display()]),
-            e
-        )
-    });
+fn setup_and_parse_config(args: &RunArgs) -> Result<(TestMatrix, PathBuf)> {
+    let config_path = fs::canonicalize(&args.config)
+        .with_context(|| i18n::t_fmt(I18nKey::ConfigReadFailedPath, &[&args.config.display()]))?;
+
     let config_content = fs::read_to_string(&config_path)
-        .unwrap_or_else(|_| panic!("{}", i18n::t_fmt(I18nKey::ConfigReadFailedPath, &[&config_path.display()])));
-    let test_matrix: TestMatrix =
-        toml::from_str(&config_content).unwrap_or_else(|_| { panic!("{}", i18n::t(I18nKey::ConfigParseFailed)) });
-    (test_matrix, config_path)
+        .with_context(|| i18n::t_fmt(I18nKey::ConfigReadFailedPath, &[&config_path.display()]))?;
+
+    let test_matrix: TestMatrix = toml::from_str(&config_content)
+        .with_context(|| i18n::t(I18nKey::ConfigParseFailed))?;
+
+    Ok((test_matrix, config_path))
 }
 
 /// Prepares the testing environment by fetching dependencies and identifying the crate name.
 /// 通过预取依赖和识别 crate 名称来准备测试环境。
-async fn prepare_environment(args: &RunArgs) -> (PathBuf, String) {
-    let project_root = fs::canonicalize(&args.project_dir).unwrap_or_else(|_| {
-        panic!("{}", i18n::t_fmt(I18nKey::ProjectDirNotFound, &[&args.project_dir.display()]))
-    });
+async fn prepare_environment(args: &RunArgs) -> Result<(PathBuf, String)> {
+    let project_root = fs::canonicalize(&args.project_dir)
+        .with_context(|| i18n::t_fmt(I18nKey::ProjectDirNotFound, &[&args.project_dir.display()]))?;
 
     println!("\n{}", i18n::t(I18nKey::DepFetchStart).cyan());
     let mut fetch_cmd = std::process::Command::new("cargo");
     fetch_cmd.current_dir(&project_root).arg("fetch");
 
-    let fetch_status = fetch_cmd.status().expect("Failed to execute cargo fetch command");
+    let fetch_status = fetch_cmd.status()
+        .context("Failed to execute cargo fetch command")?;
     if !fetch_status.success() {
-        panic!("{}", i18n::t(I18nKey::CargoFetchFailed));
+        return Err(anyhow::anyhow!("{}", i18n::t(I18nKey::CargoFetchFailed)));
     }
     println!("{}", i18n::t(I18nKey::DepFetchSuccess).green());
 
     let manifest_path = project_root.join("Cargo.toml");
-    let manifest_content = fs::read_to_string(&manifest_path).unwrap_or_else(|_| {
-        panic!("{}", i18n::t_fmt(I18nKey::ManifestReadFailed, &[&manifest_path.display()]))
-    });
-    let manifest: Manifest = toml::from_str(&manifest_content).unwrap_or_else(|_| { panic!("{}", i18n::t(I18nKey::ManifestParseFailed)) });
+    let manifest_content = fs::read_to_string(&manifest_path)
+        .with_context(|| i18n::t_fmt(I18nKey::ManifestReadFailed, &[&manifest_path.display()]))?;
+
+    let manifest: Manifest = toml::from_str(&manifest_content)
+        .with_context(|| i18n::t(I18nKey::ManifestParseFailed))?;
     let crate_name = manifest.package.name.replace('-', "_");
 
-    (project_root, crate_name)
+    Ok((project_root, crate_name))
 }
 
 /// Sets up a Ctrl+C signal handler to gracefully shut down the application.
 /// 设置 Ctrl+C 信号处理器以优雅地关闭应用程序。
-fn setup_signal_handler() -> CancellationToken {
+fn setup_signal_handler() -> Result<CancellationToken> {
     let token = CancellationToken::new();
     let signal_token = token.clone();
     tokio::spawn(async move {
-        signal::ctrl_c().await.expect("Failed to listen for Ctrl+C signal");
+        if let Err(e) = signal::ctrl_c().await {
+            eprintln!("Failed to listen for Ctrl+C signal: {}", e);
+            return;
+        }
         println!("\n{}", i18n::t(I18nKey::ShutdownSignal).yellow());
         signal_token.cancel();
     });
-    token
+    Ok(token)
 }
 
 /// Filters test cases based on architecture and distributes them for parallel runners.
 /// 根据架构筛选测试用例并为并行运行器分发它们。
-fn filter_and_distribute_cases(test_matrix: TestMatrix, args: &RunArgs) -> Vec<runner::config::TestCase> {
+fn filter_and_distribute_cases(test_matrix: TestMatrix, args: &RunArgs) -> Result<Vec<runner::config::TestCase>> {
     let total_cases_count = test_matrix.cases.len();
     let current_arch = std::env::consts::ARCH;
     println!("{}", i18n::t_fmt(I18nKey::CurrentArch, &[&current_arch.yellow()]));
@@ -245,7 +253,7 @@ fn filter_and_distribute_cases(test_matrix: TestMatrix, args: &RunArgs) -> Vec<r
     match (args.total_runners, args.runner_index) {
         (Some(total), Some(index)) => {
             if index >= total {
-                panic!("{}", i18n::t(I18nKey::RunnerIndexInvalid));
+                return Err(anyhow::anyhow!("{}", i18n::t(I18nKey::RunnerIndexInvalid)));
             }
             let cases_for_this_runner = all_cases
                 .into_iter()
@@ -253,14 +261,14 @@ fn filter_and_distribute_cases(test_matrix: TestMatrix, args: &RunArgs) -> Vec<r
                 .filter_map(|(i, case)| if i % total == index { Some(case) } else { None })
                 .collect::<Vec<_>>();
             println!("{}", i18n::t_fmt(I18nKey::RunningAsSplitRunner, &[&(index + 1), &total, &cases_for_this_runner.len()]).yellow());
-            cases_for_this_runner
+            Ok(cases_for_this_runner)
         }
         (None, None) => {
             println!("{}", i18n::t(I18nKey::RunningAsSingleRunner).yellow());
-            all_cases
+            Ok(all_cases)
         }
         _ => {
-            panic!("{}", i18n::t(I18nKey::RunnerFlagsInconsistent));
+            Err(anyhow::anyhow!("{}", i18n::t(I18nKey::RunnerFlagsInconsistent)))
         }
     }
 }
@@ -273,10 +281,10 @@ async fn run_tests(
     project_root: &PathBuf,
     crate_name: &str,
     overall_stop_token: CancellationToken,
-) -> (
+) -> Result<(
     Vec<runner::models::TestResult>, // final_results
     bool,                             // has_unexpected_failures
-) {
+)> {
     println!("{}", i18n::t(I18nKey::TempDirCleanupInfo).green());
     println!("{}", i18n::t(I18nKey::FailureArtifactInfo).yellow());
 
@@ -304,7 +312,12 @@ async fn run_tests(
         let name = crate_name.to_string();
         tokio::spawn(async move {
             tokio::select! {
-                res = run_test_case(case, &root, &name) => res.unwrap_or_else(|e| panic!("Task failed: {e:?}")),
+                res = run_test_case(case, &root, &name) => {
+                    res.unwrap_or_else(|e| {
+                            eprintln!("Task failed: {e:?}");
+                            runner::models::TestResult::Skipped
+                        })
+                },
                 _ = case_stop_token.cancelled() => runner::models::TestResult::Skipped,
                 _ = global_stop_token.cancelled() => runner::models::TestResult::Skipped,
             }
@@ -313,7 +326,10 @@ async fn run_tests(
 
     let mut safe_processed_stream = safe_stream.buffer_unordered(jobs);
     while let Some(result) = safe_processed_stream.next().await {
-        let test_result = result.unwrap();
+        let test_result = result.unwrap_or_else(|e| {
+            eprintln!("Task join error: {e:?}");
+            runner::models::TestResult::Skipped
+        });
         if test_result.is_unexpected_failure()
             && !fast_fail_token.is_cancelled() {
                 println!("\n{}", i18n::t(I18nKey::FastFailTriggered).red().bold());
@@ -330,7 +346,12 @@ async fn run_tests(
             let name = crate_name.to_string();
             tokio::spawn(async move {
                 tokio::select! {
-                    res = run_test_case(case, &root, &name) => res.unwrap_or_else(|e| panic!("Task failed: {e:?}")),
+                    res = run_test_case(case, &root, &name) => {
+                        res.unwrap_or_else(|e| {
+                                eprintln!("Task failed: {e:?}");
+                                runner::models::TestResult::Skipped
+                            })
+                    },
                     _ = global_stop_token.cancelled() => runner::models::TestResult::Skipped,
                 }
             })
@@ -338,10 +359,14 @@ async fn run_tests(
 
         let mut flaky_processed_stream = flaky_stream.buffer_unordered(jobs);
         while let Some(result) = flaky_processed_stream.next().await {
-            results.push(result.unwrap());
+            let test_result = result.unwrap_or_else(|e| {
+                eprintln!("Task join error: {e:?}");
+                runner::models::TestResult::Skipped
+            });
+            results.push(test_result);
         }
     }
 
     let has_unexpected_failures = results.iter().any(|r| r.is_unexpected_failure());
-    (results, has_unexpected_failures)
+    Ok((results, has_unexpected_failures))
 }

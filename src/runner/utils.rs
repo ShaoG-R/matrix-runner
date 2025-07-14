@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use crate::runner::i18n;
 use crate::runner::i18n::I18nKey;
 use crate::runner::models::BuildContext;
@@ -70,7 +71,7 @@ pub fn create_build_dir(
     crate_name: &str,
     features: &str,
     no_default_features: bool,
-) -> BuildContext {
+) -> Result<BuildContext> {
     let build_type = if no_default_features { "no-std" } else { "std" };
 
     // Create a descriptive prefix for the temp directory to make it easier to identify
@@ -87,12 +88,12 @@ pub fn create_build_dir(
         prefix = format!("{prefix}-{sanitized_features}");
     }
 
-    let temp_dir =
-        TempDir::with_prefix(&prefix).unwrap_or_else(|_| { panic!("{}", i18n::t(I18nKey::CreateTempDirFailed)) });
+    let temp_dir = TempDir::with_prefix(&prefix)
+        .with_context(|| i18n::t(I18nKey::CreateTempDirFailed))?;
     let target_path = temp_dir.path().to_path_buf();
 
-    BuildContext {
+    Ok(BuildContext {
         _temp_root: temp_dir,
         target_path,
-    }
+    })
 }

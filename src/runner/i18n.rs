@@ -6,19 +6,32 @@ include!(concat!(env!("OUT_DIR"), "/i18n.rs"));
 static CURRENT_LANG: Lazy<Mutex<String>> = Lazy::new(|| Mutex::new("en".to_string()));
 
 pub fn init(lang_code: &str) {
-    let mut lang = CURRENT_LANG.lock().unwrap();
-    // A simple check to see if the lang code might be valid.
-    // The build script ensures `en` always exists.
-    if lang_code == "en" || lang_code == "zh-CN" {
-        *lang = lang_code.to_string();
-    } else {
-        *lang = "en".to_string();
+    match CURRENT_LANG.lock() {
+        Ok(mut lang) => {
+            // A simple check to see if the lang code might be valid.
+            // The build script ensures `en` always exists.
+            if lang_code == "en" || lang_code == "zh-CN" {
+                *lang = lang_code.to_string();
+            } else {
+                *lang = "en".to_string();
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to lock language mutex during init: {}", e);
+            // Continue with default language, no need to panic
+        }
     }
 }
 
 pub fn t(key: I18nKey) -> String {
-    let lang_code = CURRENT_LANG.lock().unwrap();
-    get_translation(&lang_code, key).to_string()
+    match CURRENT_LANG.lock() {
+        Ok(lang_code) => get_translation(&lang_code, key).to_string(),
+        Err(e) => {
+            eprintln!("Failed to lock language mutex: {}", e);
+            // Fallback to English if mutex is poisoned
+            get_translation("en", key).to_string()
+        }
+    }
 }
 
 /// 检测系统默认语言
