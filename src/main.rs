@@ -62,9 +62,11 @@ struct RunArgs {
 #[derive(Parser, Debug)]
 struct InitArgs {
     /// Language for the wizard interface and generated config file.
+    /// If not specified, the system language will be auto-detected.
     /// 向导界面和生成的配置文件的语言。
-    #[arg(short, long, default_value = "en")]
-    language: String,
+    /// 如果未指定，将自动检测系统语言。
+    #[arg(short, long)]
+    language: Option<String>,
 }
 
 /// Represents the `[package]` section of a Cargo.toml file.
@@ -92,10 +94,23 @@ async fn main() {
             run_matrix_tests(args).await;
         }
         Commands::Init(args) => {
+            // Determine the language to use: user-specified or auto-detected
+            // 确定要使用的语言：用户指定的或自动检测的
+            let language = args.language.clone().unwrap_or_else(|| {
+                i18n::detect_system_language()
+            });
+
             // Initialize i18n for the init wizard
             // 为初始化向导初始化 i18n
-            i18n::init(&args.language);
-            if let Err(e) = init::run_init_wizard(&args.language) {
+            i18n::init(&language);
+
+            // Show language detection message if it was auto-detected
+            // 如果是自动检测的语言，显示检测消息
+            if args.language.is_none() {
+                println!("🌐 {}", i18n::t_fmt(I18nKey::SystemLanguageDetected, &[&language]));
+            }
+
+            if let Err(e) = init::run_init_wizard(&language) {
                 eprintln!("{} {}", "Error:".red(), e);
                 std::process::exit(1);
             }

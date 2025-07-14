@@ -21,6 +21,104 @@ pub fn t(key: I18nKey) -> String {
     get_translation(&lang_code, key).to_string()
 }
 
+/// 检测系统默认语言
+/// Detects the system's default language using the sys-locale crate
+///
+/// # Returns / 返回值
+/// * `String` - 检测到的语言代码，如果检测失败则返回 "en"
+///              The detected language code, or "en" if detection fails
+///
+/// # 检测逻辑 / Detection Logic
+/// 1. 使用 sys-locale crate 获取系统语言设置
+/// 2. 解析语言代码并映射到支持的语言
+/// 3. 如果检测失败或不支持，回退到 "en"
+///
+/// 1. Use sys-locale crate to get system language settings
+/// 2. Parse language code and map to supported languages
+/// 3. If detection fails or unsupported, fallback to "en"
+pub fn detect_system_language() -> String {
+    // 使用 sys-locale 获取系统语言
+    // Use sys-locale to get system language
+    match sys_locale::get_locale() {
+        Some(locale) => {
+            let lang_code = parse_language_from_locale(&locale);
+            if is_supported_language(&lang_code) {
+                lang_code
+            } else {
+                "en".to_string()
+            }
+        }
+        None => "en".to_string(),
+    }
+}
+
+/// 从 BCP 47 language tag 中解析语言代码
+/// Parses language code from BCP 47 language tag
+///
+/// BCP 47 格式：language[-script][-region][-variant]
+/// BCP 47 format: language[-script][-region][-variant]
+///
+/// # Examples / 示例
+/// * `zh-CN` -> `zh-CN` (简体中文，中国)
+/// * `zh-TW` -> `zh-CN` (繁体中文，台湾 -> 映射到简体中文)
+/// * `zh-Hans` -> `zh-CN` (简体中文脚本)
+/// * `zh-Hant` -> `zh-CN` (繁体中文脚本 -> 映射到简体中文)
+/// * `zh-Hans-CN` -> `zh-CN` (简体中文脚本，中国)
+/// * `zh-Hant-TW` -> `zh-CN` (繁体中文脚本，台湾 -> 映射到简体中文)
+/// * `en` -> `en` (英文)
+/// * `en-US` -> `en` (英文，美国)
+/// * `en-GB` -> `en` (英文，英国)
+/// * `fr-FR` -> `en` (法文 -> 回退到英文)
+fn parse_language_from_locale(locale: &str) -> String {
+    // 将 locale 转换为小写以便比较，并按 '-' 分割
+    // Convert locale to lowercase for comparison and split by '-'
+    let locale_lower = locale.to_lowercase();
+    let parts: Vec<&str> = locale_lower.split('-').collect();
+
+    if parts.is_empty() {
+        return "en".to_string();
+    }
+
+    let language = parts[0];
+
+    match language {
+        "zh" => {
+            // 中文处理：检查脚本和地区代码
+            // Chinese handling: check script and region codes
+            for part in &parts[1..] {
+                match *part {
+                    // 繁体中文脚本或台湾地区 -> 暂时映射到简体中文
+                    // Traditional Chinese script or Taiwan region -> temporarily map to Simplified Chinese
+                    "hant" | "tw" => return "zh-CN".to_string(),
+                    // 简体中文脚本或中国大陆地区
+                    // Simplified Chinese script or Mainland China region
+                    "hans" | "cn" => return "zh-CN".to_string(),
+                    _ => continue,
+                }
+            }
+            // 如果没有特定的脚本或地区信息，默认为简体中文
+            // If no specific script or region info, default to Simplified Chinese
+            "zh-CN".to_string()
+        }
+        "en" => {
+            // 英文：不区分地区，统一使用 "en"
+            // English: no region distinction, use "en" uniformly
+            "en".to_string()
+        }
+        _ => {
+            // 其他语言暂时映射到英文
+            // Other languages temporarily mapped to English
+            "en".to_string()
+        }
+    }
+}
+
+/// 检查语言代码是否被支持
+/// Checks if a language code is supported
+fn is_supported_language(lang_code: &str) -> bool {
+    matches!(lang_code, "en" | "zh-CN")
+}
+
 
 
 /// 一个支持 {n} 和 {} 两种占位符的格式化函数。
@@ -169,6 +267,65 @@ fn fmt_core(s: &str, args: &[&dyn fmt::Display]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*; // 导入父模块中的所有内容，包括 fmt_core
+
+    #[test]
+    fn test_parse_language_from_locale() {
+        // 测试中文 BCP 47 language tags
+        // Test Chinese BCP 47 language tags
+        assert_eq!(parse_language_from_locale("zh"), "zh-CN");
+        assert_eq!(parse_language_from_locale("zh-CN"), "zh-CN");
+        assert_eq!(parse_language_from_locale("zh-TW"), "zh-CN"); // 繁体映射到简体
+        assert_eq!(parse_language_from_locale("zh-Hans"), "zh-CN");
+        assert_eq!(parse_language_from_locale("zh-Hant"), "zh-CN"); // 繁体映射到简体
+        assert_eq!(parse_language_from_locale("zh-Hans-CN"), "zh-CN");
+        assert_eq!(parse_language_from_locale("zh-Hant-TW"), "zh-CN"); // 繁体映射到简体
+        assert_eq!(parse_language_from_locale("zh-Hans-SG"), "zh-CN"); // 新加坡简体中文
+
+        // 测试英文 BCP 47 language tags
+        // Test English BCP 47 language tags
+        assert_eq!(parse_language_from_locale("en"), "en");
+        assert_eq!(parse_language_from_locale("en-US"), "en");
+        assert_eq!(parse_language_from_locale("en-GB"), "en");
+        assert_eq!(parse_language_from_locale("en-AU"), "en");
+        assert_eq!(parse_language_from_locale("en-CA"), "en");
+
+        // 测试大小写不敏感
+        // Test case insensitivity
+        assert_eq!(parse_language_from_locale("ZH-CN"), "zh-CN");
+        assert_eq!(parse_language_from_locale("EN-US"), "en");
+        assert_eq!(parse_language_from_locale("Zh-Hans-CN"), "zh-CN");
+
+        // 测试其他语言（应该回退到英文）
+        // Test other languages (should fallback to English)
+        assert_eq!(parse_language_from_locale("fr"), "en");
+        assert_eq!(parse_language_from_locale("fr-FR"), "en");
+        assert_eq!(parse_language_from_locale("de-DE"), "en");
+        assert_eq!(parse_language_from_locale("ja-JP"), "en");
+        assert_eq!(parse_language_from_locale("ko-KR"), "en");
+        assert_eq!(parse_language_from_locale("es-ES"), "en");
+
+        // 测试边界情况
+        // Test edge cases
+        assert_eq!(parse_language_from_locale(""), "en");
+        assert_eq!(parse_language_from_locale("-"), "en");
+        assert_eq!(parse_language_from_locale("invalid"), "en");
+    }
+
+    #[test]
+    fn test_is_supported_language() {
+        assert!(is_supported_language("en"));
+        assert!(is_supported_language("zh-CN"));
+        assert!(!is_supported_language("fr"));
+        assert!(!is_supported_language("de"));
+        assert!(!is_supported_language("ja"));
+    }
+
+    #[test]
+    fn test_detect_system_language() {
+        // 这个测试只是确保函数不会 panic，并返回有效的语言代码
+        let detected = detect_system_language();
+        assert!(is_supported_language(&detected));
+    }
 
     // --- 基本功能测试 ---
 
