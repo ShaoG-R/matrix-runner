@@ -51,4 +51,25 @@ summary_unexpected_failures = "---意外的失败---"
 summary_unexpected_failure_case = "{} ({} 失败)"
 overall_failure = "测试矩阵执行失败"
 overall_cancelled = "测试矩阵执行被取消"
-overall_success = "测试矩阵成功通过" 
+overall_success = "测试矩阵成功通过"
+
+# command.rs
+compiler_error_parse_failed = "无法解析特定的编译器错误。以下是原始输出片段："
+kill_process_failed = "杀死子进程失败: {}"
+capture_stdout_failed = "捕获子进程的 stdout 失败"
+capture_stderr_failed = "捕获子进程的 stderr 失败"
+
+# execution.rs
+building_test = "正在构建测试: {}"
+build_successful = "成功构建测试: {}"
+build_failed_preserving = "用例 '{}' 构建失败。正在保留构建产物于: {}"
+cleanup_old_artifacts_failed = "清理旧的错误产物目录失败"
+copy_artifacts_failed = "为 '{}' 复制错误产物失败: {}"
+find_executable_failed = "在 cargo 输出中找不到测试可执行文件"
+queueing_test = "正在排队测试: {}"
+finished_test = "完成测试: {}，用时 {:.2?}"
+test_failed_preserving = "测试 '{}' 失败。正在保留构建产物于: {}"
+error_waiting_process_complete = "等待进程完成时出错"
+
+# utils.rs
+create_temp_dir_failed = "创建临时目录失败" 

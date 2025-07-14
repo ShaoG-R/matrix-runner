@@ -3,6 +3,7 @@ use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio_util::sync::CancellationToken;
 
+use crate::runner::i18n;
 use crate::runner::models::CargoMessage;
 
 /// Extracts and formats compiler errors from `cargo` JSON output.
@@ -28,7 +29,7 @@ pub fn format_build_error_output(raw_output: &str) -> String {
         let snippet = raw_output.lines().take(50).collect::<Vec<_>>().join("\n");
         format!(
             "{}\n\n{}",
-            "Could not parse specific compiler errors. Raw output snippet:".yellow(),
+            i18n::t("compiler_error_parse_failed").yellow(),
             snippet
         )
     } else {
@@ -64,11 +65,11 @@ pub async fn spawn_and_capture(
     let stdout = child
         .stdout
         .take()
-        .expect("Failed to capture stdout of child process");
+        .expect(&i18n::t("capture_stdout_failed"));
     let stderr = child
         .stderr
         .take()
-        .expect("Failed to capture stderr of child process");
+        .expect(&i18n::t("capture_stderr_failed"));
 
     let output = Arc::new(tokio::sync::Mutex::new(String::new()));
 
@@ -98,7 +99,7 @@ pub async fn spawn_and_capture(
         tokio::select! {
             _ = token.cancelled() => {
                 if let Err(e) = child.start_kill() {
-                    eprintln!("Failed to kill child process: {}", e);
+                    eprintln!("{}", i18n::t_fmt("kill_process_failed", &[&e]));
                 }
                 (child.wait().await, true)
             },

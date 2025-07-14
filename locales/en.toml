@@ -51,4 +51,25 @@ summary_unexpected_failures = "--- Unexpected Failures ---"
 summary_unexpected_failure_case = "{} ({} Failure)"
 overall_failure = "TEST MATRIX FAILED"
 overall_cancelled = "TEST MATRIX EXECUTION CANCELLED"
-overall_success = "TEST MATRIX PASSED SUCCESSFULLY" 
+overall_success = "TEST MATRIX PASSED SUCCESSFULLY"
+
+# command.rs
+compiler_error_parse_failed = "Could not parse specific compiler errors. Raw output snippet:"
+kill_process_failed = "Failed to kill child process: {}"
+capture_stdout_failed = "Failed to capture stdout of child process"
+capture_stderr_failed = "Failed to capture stderr of child process"
+
+# execution.rs
+building_test = "Building test: {}"
+build_successful = "Successfully built test: {}"
+build_failed_preserving = "Build for '{}' failed. Preserving build artifacts in: {}"
+cleanup_old_artifacts_failed = "Failed to clean up old error artifacts directory"
+copy_artifacts_failed = "Failed to copy error artifacts for '{}': {}"
+find_executable_failed = "Could not find test executable in cargo output"
+queueing_test = "Queueing test: {}"
+finished_test = "Finished test: {} in {:.2?}"
+test_failed_preserving = "Test '{}' failed. Preserving build artifacts in: {}"
+error_waiting_process_complete = "Error waiting for process to complete"
+
+# utils.rs
+create_temp_dir_failed = "Failed to create temporary directory" 

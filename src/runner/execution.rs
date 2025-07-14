@@ -8,6 +8,7 @@ use crate::runner::config::TestCase;
 use crate::runner::models::CargoMessage;
 use crate::runner::models::{BuiltTest, FailureReason, TestResult};
 use crate::runner::utils::{copy_dir_all, create_build_dir};
+use crate::runner::i18n;
 
 /// Runs a test case, including building and running it.
 /// This function encapsulates the entire lifecycle of a single test configuration.
@@ -32,7 +33,7 @@ async fn build_test_case(
     crate_name: String,
     stop_token: Option<CancellationToken>,
 ) -> Result<BuiltTest, TestResult> {
-    println!("{}", format!("Building test: {}", case.name).blue());
+    println!("{}", i18n::t_fmt("building_test", &[&case.name]).blue());
 
     let build_ctx = create_build_dir(&case.features, case.no_default_features);
 
@@ -63,7 +64,7 @@ async fn build_test_case(
     ).split_whitespace().collect::<Vec<&str>>().join(" ");
 
     let (status_res, output, was_cancelled) = spawn_and_capture(cmd, stop_token).await;
-    let status = status_res.expect("Error waiting for process to complete");
+    let status = status_res.expect(&i18n::t("error_waiting_process_complete"));
 
     if !status.success() {
         let failure_reason = if was_cancelled {
@@ -83,10 +84,9 @@ async fn build_test_case(
 
             println!(
                 "{}\n  Command: {}",
-                format!(
-                    "Build for '{}' failed. Preserving build artifacts in: {}",
-                    case.name,
-                    error_dir_path.display()
+                i18n::t_fmt(
+                    "build_failed_preserving",
+                    &[&case.name, &error_dir_path.display()]
                 )
                 .yellow(),
                 command_string.cyan()
@@ -94,11 +94,14 @@ async fn build_test_case(
 
             if error_dir_path.exists() {
                 fs::remove_dir_all(&error_dir_path)
-                    .expect("Failed to clean up old error artifacts directory");
+                    .expect(&i18n::t("cleanup_old_artifacts_failed"));
             }
 
             copy_dir_all(&build_ctx.target_path, &error_dir_path).unwrap_or_else(|e| {
-                eprintln!("Failed to copy error artifacts for '{}': {}", case.name, e)
+                eprintln!(
+                    "{}",
+                    i18n::t_fmt("copy_artifacts_failed", &[&case.name, &e])
+                )
             });
         }
 
@@ -128,11 +131,11 @@ async fn build_test_case(
             }
             None
         })
-        .expect("Could not find test executable in cargo output");
+        .expect(&i18n::t("find_executable_failed"));
 
     println!(
         "{}",
-        format!("Successfully built test: {}", case.name).green()
+        i18n::t_fmt("build_successful", &[&case.name]).green()
     );
 
     Ok(BuiltTest {
@@ -152,20 +155,24 @@ async fn run_built_test(
     let project_root = PathBuf::from("."); // Not ideal, but should work.
 
     let start_time = std::time::Instant::now();
-    println!("{}", format!("Queueing test: {}", case.name).blue());
+    println!("{}", i18n::t_fmt("queueing_test", &[&case.name]).blue());
 
     let mut cmd = tokio::process::Command::new(&executable);
     cmd.kill_on_drop(true);
     let command_string = format!("{}", executable.display());
 
     let (status_res, output, was_cancelled) = spawn_and_capture(cmd, stop_token).await;
-    let status = status_res.expect("Error waiting for process to complete");
+    let status = status_res.expect(&i18n::t("error_waiting_process_complete"));
 
     let duration = start_time.elapsed();
 
     println!(
         "{}",
-        format!("Finished test: {} in {:.2?}", case.name, duration).blue()
+        i18n::t_fmt(
+            "finished_test",
+            &[&case.name, &format_args!("{:.2?}", duration)]
+        )
+        .blue()
     );
 
     let success = status.success();
@@ -196,10 +203,9 @@ async fn run_built_test(
 
             println!(
                 "{}\n  Command: {}",
-                format!(
-                    "Test '{}' failed. Preserving build artifacts in: {}",
-                    case.name,
-                    error_dir_path.display()
+                i18n::t_fmt(
+                    "test_failed_preserving",
+                    &[&case.name, &error_dir_path.display()]
                 )
                 .yellow(),
                 command_string.cyan()
@@ -207,13 +213,16 @@ async fn run_built_test(
 
             if error_dir_path.exists() {
                 fs::remove_dir_all(&error_dir_path)
-                    .expect("Failed to clean up old error artifacts directory");
+                    .expect(&i18n::t("cleanup_old_artifacts_failed"));
             }
 
             // The build artifacts are already in the temp dir managed by build_ctx.
             // We just need to copy them.
             copy_dir_all(&build_ctx.target_path, &error_dir_path).unwrap_or_else(|e| {
-                eprintln!("Failed to copy error artifacts for '{}': {}", case.name, e)
+                eprintln!(
+                    "{}",
+                    i18n::t_fmt("copy_artifacts_failed", &[&case.name, &e])
+                )
             });
         }
 
