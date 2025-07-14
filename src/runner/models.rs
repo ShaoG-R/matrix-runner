@@ -15,28 +15,25 @@ pub enum FailureReason {
     /// The test case built successfully but failed when the test executable was run.
     /// 测试用例构建成功，但在运行测试可执行文件时失败。
     Test,
-    /// The test case was cancelled, either by a user signal (Ctrl+C) or because
-    /// another non-ignored test failed.
-    /// 测试用例被取消，原因可能是用户信号（Ctrl+C）或另一个非忽略的测试失败。
-    Cancelled,
 }
 
 /// Represents the final result of a single test case execution.
-/// 包含单个测试用例执行的最终结果。
 #[derive(Debug, Clone)]
-pub struct TestResult {
-    /// The original `TestCase` configuration for this result.
-    /// 此结果对应的原始 `TestCase` 配置。
-    pub case: TestCase,
-    /// The combined stdout and stderr output from the build and run commands.
-    /// 构建和运行命令的组合 stdout 和 stderr 输出。
-    pub output: String,
-    /// `true` if the test case passed, `false` otherwise.
-    /// 如果测试用例通过则为 `true`，否则为 `false`。
-    pub success: bool,
-    /// If `success` is `false`, this field contains the reason for the failure.
-    /// 如果 `success` 为 `false`，此字段包含失败的原因。
-    pub failure_reason: Option<FailureReason>,
+pub enum TestResult {
+    /// The test case passed successfully.
+    Passed {
+        case: TestCase,
+        #[allow(dead_code)]
+        output: String,
+    },
+    /// The test case failed.
+    Failed {
+        case: TestCase,
+        output: String,
+        reason: FailureReason,
+    },
+    /// The test case was skipped.
+    Skipped,
 }
 
 /// A context for a single build, managing its isolated temporary directory.

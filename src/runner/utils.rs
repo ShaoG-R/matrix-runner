@@ -1,4 +1,5 @@
 use crate::runner::i18n;
+use crate::runner::i18n::I18nKey;
 use crate::runner::models::BuildContext;
 use std::fs;
 use std::path::Path;
@@ -86,7 +87,8 @@ pub fn create_build_dir(
         prefix = format!("{}-{}", prefix, sanitized_features);
     }
 
-    let temp_dir = TempDir::with_prefix(&prefix).expect(&i18n::t("create_temp_dir_failed"));
+    let temp_dir =
+        TempDir::with_prefix(&prefix).expect(&i18n::t(I18nKey::CreateTempDirFailed));
     let target_path = temp_dir.path().to_path_buf();
 
     BuildContext {

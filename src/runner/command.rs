@@ -1,9 +1,9 @@
 use colored::*;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio_util::sync::CancellationToken;
 
 use crate::runner::i18n;
+use crate::runner::i18n::I18nKey;
 use crate::runner::models::CargoMessage;
 
 /// Extracts and formats compiler errors from `cargo` JSON output.
@@ -51,7 +51,7 @@ pub fn format_build_error_output(raw_output: &str) -> String {
         let snippet = raw_output.lines().take(50).collect::<Vec<_>>().join("\n");
         format!(
             "{}\n\n{}",
-            i18n::t("compiler_error_parse_failed").yellow(),
+            i18n::t(I18nKey::CompilerErrorParseFailed).yellow(),
             snippet
         )
     } else {
@@ -90,7 +90,6 @@ pub fn format_build_error_output(raw_output: &str) -> String {
 /// - 一个布尔值 `was_cancelled`，如果进程因令牌而终止，则为 true。
 pub async fn spawn_and_capture(
     mut cmd: tokio::process::Command,
-    stop_token: Option<CancellationToken>,
 ) -> (
     std::io::Result<std::process::ExitStatus>,
     String,
@@ -114,11 +113,11 @@ pub async fn spawn_and_capture(
     let stdout = child
         .stdout
         .take()
-        .expect(&i18n::t("capture_stdout_failed"));
+        .expect(&i18n::t(I18nKey::CaptureStdoutFailed));
     let stderr = child
         .stderr
         .take()
-        .expect(&i18n::t("capture_stderr_failed"));
+        .expect(&i18n::t(I18nKey::CaptureStderrFailed));
 
     // Use an Arc<Mutex<String>> to allow concurrent writes from stdout and stderr tasks.
     // 使用 Arc<Mutex<String>> 来允许多个任务（stdout 和 stderr）并发写入。
@@ -152,27 +151,8 @@ pub async fn spawn_and_capture(
 
     // Wait for the process to exit or for the cancellation token to be triggered.
     // 等待进程退出或取消令牌被触发。
-    let (status, was_cancelled) = if let Some(token) = stop_token {
-        tokio::select! {
-            // If the token is cancelled, kill the process.
-            // 如果令牌被取消，则杀死进程。
-            _ = token.cancelled() => {
-                if let Err(e) = child.start_kill() {
-                    eprintln!("{}", i18n::t_fmt("kill_process_failed", &[&e]));
-                }
-                (child.wait().await, true)
-            },
-            // If the process exits normally, get its status.
-            // 如果进程正常退出，则获取其状态。
-            status = child.wait() => {
-                (status, false)
-            }
-        }
-    } else {
-        // If there's no stop token, just wait for the process to exit.
-        // 如果没有停止令牌，则只等待进程退出。
-        (child.wait().await, false)
-    };
+    let status = child.wait().await;
+    let was_cancelled = false; // Cancellation is now handled by the caller via `tokio::select!`
 
     // Wait for the stdout and stderr reading tasks to complete to ensure all output is captured.
     // 等待 stdout 和 stderr 读取任务完成，以确保所有输出都被捕获。
