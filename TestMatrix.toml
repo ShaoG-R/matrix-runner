@@ -1,314 +1,86 @@
+# Example TestMatrix.toml for matrix-runner
+# This file defines the test configurations to be run.
+#
+# matrix-runner 的示例 TestMatrix.toml 文件
+# 此文件定义了需要运行的测试配置。
+
+# Optional: Set the language for the runner's output.
+# Supported values are "en" (default) and "zh-CN".
+#
+# 可选：设置运行器输出的语言。
+# 支持 "en"（默认值）和 "zh-CN"。
+language = "en"
+
+# Each [[cases]] block defines a single test case.
+# 每个 [[cases]] 块定义一个测试用例。
+
+# --- Basic Configurations ---
+# --- 基本配置 ---
+
+# A simple test case with default features. This is the most basic configuration.
+# 一个使用默认功能的基本测试用例。这是最简单的配置。
 [[cases]]
 name = "std-default"
 features = ""
 no_default_features = false
-allow_failure = []
 
+# A test case enabling a specific feature set.
+# The "features" field is a comma-separated string.
+# 一个启用特定功能集的测试用例。
+# "features" 字段是一个用逗号分隔的字符串。
 [[cases]]
-name = "std-classic"
-features = "classic"
+name = "std-feature-set-A"
+features = "feature-x,feature-y"
 no_default_features = false
-allow_failure = []
 
+# A 'no_std' test case.
+# `no_default_features = true` is typically used for no_std builds.
+# 一个 'no_std' 测试用例。
+# `no_default_features = true` 通常用于 no_std 构建。
 [[cases]]
-name = "std-pqc"
-features = "pqc"
-no_default_features = false
-allow_failure = []
+name = "no_std-basic"
+features = "some-no-std-feature"
+no_default_features = true
 
-[[cases]]
-name = "std-kdf"
-features = "kdf"
-no_default_features = false
-allow_failure = []
+# --- Advanced Configurations ---
+# --- 高级配置 ---
 
+# A test case that is expected to fail on certain operating systems.
+# The runner will not exit with an error code if this test fails on Windows.
+# The values should match Rust's `std::env::consts::OS` (e.g., "linux", "macos", "windows").
+#
+# 一个预期在某些操作系统上会失败的测试用例。
+# 如果这个测试在 Windows 上失败，运行器不会以错误码退出。
+# 其值应与 Rust 的 `std::env::consts::OS` 匹配（例如 "linux", "macos", "windows"）。
 [[cases]]
-name = "std-xof"
-features = "xof"
-no_default_features = false
-allow_failure = []
-
-[[cases]]
-name = "std-full"
-features = "full"
-no_default_features = false
-allow_failure = []
-
-[[cases]]
-name = "std-full-no-serde"
-features = "classic,pqc,kdf,xof"
-no_default_features = false
-allow_failure = []
-
-[[cases]]
-name = "std-rsa"
-features = "rsa"
-no_default_features = false
-allow_failure = []
-
-[[cases]]
-name = "std-kyber"
-features = "kyber"
-no_default_features = false
-allow_failure = []
-
-[[cases]]
-name = "std-dilithium"
-features = "dilithium"
-no_default_features = false
-allow_failure = []
-
-[[cases]]
-name = "std-aes-gcm"
-features = "aes-gcm"
-no_default_features = false
-allow_failure = []
-
-[[cases]]
-name = "std-chacha20-poly1305"
-features = "chacha20-poly1305"
-no_default_features = false
-allow_failure = []
-
-[[cases]]
-name = "std-sha2"
-features = "sha2"
-no_default_features = false
-allow_failure = []
-
-[[cases]]
-name = "std-ecc"
-features = "ecc"
-no_default_features = false
-allow_failure = []
-
-[[cases]]
-name = "std-ecdh"
-features = "ecdh"
-no_default_features = false
-allow_failure = []
-
-[[cases]]
-name = "std-hkdf"
-features = "hkdf"
-no_default_features = false
-allow_failure = []
-
-[[cases]]
-name = "std-pbkdf2"
-features = "pbkdf2"
-no_default_features = false
-allow_failure = []
-
-[[cases]]
-name = "std-shake"
-features = "shake"
-no_default_features = false
-allow_failure = []
-
-[[cases]]
-name = "std-argon2"
-features = "argon2"
-no_default_features = false
-allow_failure = []
-
-[[cases]]
-name = "std-classic-asm"
-features = "classic,ecc-asm,sha2-asm"
+name = "flaky-on-windows"
+features = "some-flaky-feature"
 no_default_features = false
 allow_failure = ["windows"]
-arch = ["x86", "x86_64"]
 
+# A test case specific to a CPU architecture.
+# This test will only run on x86_64 machines.
+# The values should match Rust's `std::env::consts::ARCH` (e.g., "x86_64", "aarch64").
+# If `arch` is empty or not provided, the test runs on all architectures.
+#
+# 一个特定于 CPU 架构的测试用例。
+# 这个测试只会在 x86_64 架构的机器上运行。
+# 其值应与 Rust 的 `std::env::consts::ARCH` 匹配（例如 "x86_64", "aarch64"）。
+# 如果 `arch` 字段为空或未提供，则测试会在所有架构上运行。
 [[cases]]
-name = "std-pqc-avx2"
-features = "pqc,kyber-avx2,dilithium-avx2"
+name = "x86_64-specific-optimizations"
+features = "avx2-optimizations"
 no_default_features = false
-allow_failure = []
-arch = ["x86", "x86_64"]
+arch = ["x86_64"]
 
+# A complex 'no_std' test case combining multiple options.
+# It runs only on x86_64 and is allowed to fail on Windows.
+#
+# 一个复杂的 'no_std' 测试用例，结合了多个选项。
+# 它只在 x86_64 上运行，并且允许在 Windows 上失败。
 [[cases]]
-name = "std-full-optimized"
-features = "full,kyber-avx2,dilithium-avx2,sha2-asm,ecc-asm,shake-asm"
-no_default_features = false
-allow_failure = ["windows"]
-arch = ["x86", "x86_64"]
-
-[[cases]]
-name = "no_std-base"
-features = ""
-no_default_features = true
-allow_failure = []
-
-[[cases]]
-name = "no_std-classic"
-features = "no-std-classic,no-std-ecdh"
-no_default_features = true
-allow_failure = []
-
-[[cases]]
-name = "no_std-pqc"
-features = "no-std-pqc"
-no_default_features = true
-allow_failure = []
-
-[[cases]]
-name = "no_std-kdf"
-features = "no-std-kdf,sha2"
-no_default_features = true
-allow_failure = []
-
-[[cases]]
-name = "no_std-xof"
-features = "no-std-xof"
-no_default_features = true
-allow_failure = []
-
-[[cases]]
-name = "no_std-full"
-features = "no-std-full"
-no_default_features = true
-allow_failure = []
-
-[[cases]]
-name = "no_std-full-no-serde"
-features = "no-std-classic,no-std-pqc,no-std-kdf,no-std-xof"
-no_default_features = true
-allow_failure = []
-
-[[cases]]
-name = "no_std-classic-asm"
-features = "no-std-classic,no-std-ecdh,ecc-asm,sha2-asm"
+name = "no_std-complex-example"
+features = "feature-z,avx-support"
 no_default_features = true
 allow_failure = ["windows"]
-arch = ["x86", "x86_64"]
-
-[[cases]]
-name = "no_std-pqc-avx2"
-features = "no-std-pqc,kyber-avx2,dilithium-avx2"
-no_default_features = true
-allow_failure = []
-arch = ["x86", "x86_64"]
-
-[[cases]]
-name = "no_std-full-optimized"
-features = "no-std-full,kyber-avx2,dilithium-avx2,sha2-asm,ecc-asm,shake-asm"
-no_default_features = true
-allow_failure = ["windows"]
-arch = ["x86", "x86_64"]
-
-# 添加单独的 no-std 算法测试
-
-[[cases]]
-name = "no_std-rsa"
-features = "no-std-rsa"
-no_default_features = true
-allow_failure = []
-
-[[cases]]
-name = "no_std-kyber"
-features = "no-std-kyber"
-no_default_features = true
-allow_failure = []
-
-[[cases]]
-name = "no_std-dilithium"
-features = "no-std-dilithium"
-no_default_features = true
-allow_failure = []
-
-[[cases]]
-name = "no_std-aes-gcm"
-features = "no-std-aes-gcm"
-no_default_features = true
-allow_failure = []
-
-[[cases]]
-name = "no_std-chacha20-poly1305"
-features = "no-std-chacha20poly1305"
-no_default_features = true
-allow_failure = []
-
-[[cases]]
-name = "no_std-sha2"
-features = "sha2"
-no_default_features = true
-allow_failure = []
-
-[[cases]]
-name = "no_std-ecc"
-features = "no-std-ecc"
-no_default_features = true
-allow_failure = []
-
-[[cases]]
-name = "no_std-ecdh"
-features = "no-std-ecdh"
-no_default_features = true
-allow_failure = []
-
-[[cases]]
-name = "no_std-hkdf"
-features = "no-std-hkdf"
-no_default_features = true
-allow_failure = []
-
-[[cases]]
-name = "no_std-pbkdf2"
-features = "no-std-pbkdf2"
-no_default_features = true
-allow_failure = []
-
-[[cases]]
-name = "no_std-shake"
-features = "no-std-shake"
-no_default_features = true
-allow_failure = []
-
-[[cases]]
-name = "no_std-argon2"
-features = "no-std-argon2"
-no_default_features = true
-allow_failure = []
-
-# Arch-specific tests
-[[cases]]
-name = "std-sha3-asm"
-features = "shake,sha3-asm"
-no_default_features = false
-allow_failure = ["windows"]
-arch = ["x86", "x86_64"]
-
-[[cases]]
-name = "no_std-sha3-asm"
-features = "no-std-shake,sha3-asm"
-no_default_features = true
-allow_failure = ["windows"]
-arch = ["x86", "x86_64"]
-
-[[cases]]
-name = "std-sha2-asm-aarch64"
-features = "sha2,sha2-asm-aarch64"
-no_default_features = false
-allow_failure = []
-arch = ["aarch64"]
-
-[[cases]]
-name = "no_std-sha2-asm-aarch64"
-features = "sha2,sha2-asm-aarch64"
-no_default_features = true
-allow_failure = []
-arch = ["aarch64"]
-
-[[cases]]
-name = "std-sha2-loongarch64-asm"
-features = "sha2,sha2-loongarch64-asm"
-no_default_features = false
-allow_failure = []
-arch = ["loongarch64"]
-
-[[cases]]
-name = "no_std-sha2-loongarch64-asm"
-features = "sha2,sha2-loongarch64-asm"
-no_default_features = true
-allow_failure = []
-arch = ["loongarch64"] 
+arch = ["x86_64"] 
