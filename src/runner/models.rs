@@ -3,56 +3,120 @@ use serde::Deserialize;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
+/// Enumerates the possible reasons for a test case failure.
+/// This helps in categorizing errors for reporting and handling.
+/// 枚举测试用例失败的可能原因。
+/// 这有助于对错误进行分类，以便报告和处理。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FailureReason {
+    /// The test case failed during the `cargo build` or `cargo test --no-run` phase.
+    /// 测试用例在 `cargo build` 或 `cargo test --no-run` 阶段失败。
     Build,
+    /// The test case built successfully but failed when the test executable was run.
+    /// 测试用例构建成功，但在运行测试可执行文件时失败。
     Test,
+    /// The test case was cancelled, either by a user signal (Ctrl+C) or because
+    /// another non-ignored test failed.
+    /// 测试用例被取消，原因可能是用户信号（Ctrl+C）或另一个非忽略的测试失败。
     Cancelled,
 }
 
+/// Represents the final result of a single test case execution.
+/// 包含单个测试用例执行的最终结果。
 #[derive(Debug, Clone)]
 pub struct TestResult {
+    /// The original `TestCase` configuration for this result.
+    /// 此结果对应的原始 `TestCase` 配置。
     pub case: TestCase,
+    /// The combined stdout and stderr output from the build and run commands.
+    /// 构建和运行命令的组合 stdout 和 stderr 输出。
     pub output: String,
+    /// `true` if the test case passed, `false` otherwise.
+    /// 如果测试用例通过则为 `true`，否则为 `false`。
     pub success: bool,
+    /// If `success` is `false`, this field contains the reason for the failure.
+    /// 如果 `success` 为 `false`，此字段包含失败的原因。
     pub failure_reason: Option<FailureReason>,
 }
 
-/// A context for a build, managing the temporary directory.
+/// A context for a single build, managing its isolated temporary directory.
+/// The temporary directory is automatically deleted when this struct is dropped,
+/// ensuring cleanup.
+/// 单个构建的上下文，管理其隔离的临时目录。
+/// 当此结构体被丢弃时，临时目录会自动删除，以确保清理。
 pub struct BuildContext {
-    /// The temporary directory that will be auto-deleted when this struct is dropped.
+    /// The `TempDir` guard. When this goes out of scope, the directory on disk is deleted.
+    /// `TempDir` 的 guard。当它超出作用域时，磁盘上的目录将被删除。
     pub _temp_root: TempDir,
-    /// Path to the target directory for this build.
+    /// The absolute path to the target directory within the temporary directory.
+    /// This is where `cargo` will place build artifacts.
+    /// 临时目录中 target 目录的绝对路径。
+    /// `cargo` 会将构建产物放在这里。
     pub target_path: PathBuf,
 }
 
-/// Holds the result of a successful build.
+/// Represents a successfully built test case, ready to be executed.
+/// It holds the necessary information to run the test, including the path
+/// to the compiled executable and the build context (for cleanup).
+/// 代表一个成功构建的、准备好执行的测试用例。
+/// 它持有运行测试所需的信息，包括已编译可执行文件的路径和构建上下文（用于清理）。
 pub struct BuiltTest {
+    /// The `TestCase` configuration that was built.
+    /// 已构建的 `TestCase` 配置。
     pub case: TestCase,
+    /// The path to the compiled test executable file.
+    /// 指向已编译的测试可执行文件的路径。
     pub executable: PathBuf,
+    /// The build context, which manages the temporary directory for this test's artifacts.
+    /// 构建上下文，管理此测试产物的临时目录。
     pub build_ctx: BuildContext,
 }
 
-/// Represents a diagnostic message from the compiler.
+/// Represents a single diagnostic message from the compiler, part of a `CargoMessage`.
+/// This is used to parse JSON output from `cargo build`.
+/// 代表来自编译器的单个诊断消息，是 `CargoMessage` 的一部分。
+/// 用于解析来自 `cargo build` 的 JSON 输出。
 #[derive(Debug, Clone, Deserialize)]
 pub struct CargoDiagnostic {
+    /// The severity level of the diagnostic (e.g., "error", "warning").
+    /// 诊断的严重级别（例如 "error", "warning"）。
     pub level: String,
+    /// The raw diagnostic message.
+    /// 原始的诊断消息。
     pub message: String,
+    /// The ANSI color-coded, formatted message, if available.
+    /// 带有 ANSI 颜色代码的格式化消息（如果可用）。
     pub rendered: Option<String>,
 }
 
-/// Represents a message from `cargo build --message-format=json`.
+/// Represents a single message from `cargo build --message-format=json`.
+/// These messages can be compiler artifacts, build scripts, or diagnostics.
+/// 代表来自 `cargo build --message-format=json` 的单条消息。
+/// 这些消息可以是编译器产物、构建脚本或诊断信息。
 #[derive(Deserialize)]
 pub struct CargoMessage {
+    /// The reason for the message (e.g., "compiler-artifact", "compiler-message").
+    /// 消息的原因（例如 "compiler-artifact", "compiler-message"）。
     pub reason: String,
+    /// Information about the compilation target, present for artifact messages.
+    /// 关于编译目标的信息，存在于产物消息中。
     pub target: Option<CargoTarget>,
+    /// The path to the compiled executable, present for artifact messages.
+    /// 指向已编译可执行文件的路径，存在于产物消息中。
     pub executable: Option<PathBuf>,
+    /// The diagnostic message, present for compiler messages.
+    /// 诊断消息，存在于编译器消息中。
     pub message: Option<CargoDiagnostic>,
 }
 
-/// Represents the "target" field in a `CargoMessage`.
+/// Represents the "target" field within a `CargoMessage`, identifying the crate and type of artifact.
+/// 代表 `CargoMessage` 中的 "target" 字段，用于标识 crate 和产物类型。
 #[derive(Deserialize)]
 pub struct CargoTarget {
+    /// The name of the crate being compiled.
+    /// 正在编译的 crate 的名称。
     pub name: String,
+    /// `true` if the artifact is a test executable.
+    /// 如果产物是测试可执行文件，则为 `true`。
     pub test: bool,
 }
