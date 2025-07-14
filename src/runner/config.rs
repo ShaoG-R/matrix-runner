@@ -37,10 +37,12 @@ pub struct TestCase {
 pub struct TestMatrix {
     /// The language for the runner's output messages (e.g., "en", "zh-CN").
     /// Defaults to "en" if not specified.
+    ///
     /// 运行器输出消息的语言（例如 "en", "zh-CN"）。
     /// 如果未指定，则默认为 "en"。
-    #[serde(default)]
-    pub language: String,
+    // #[serde(default)]
+    // pub language: String,
+    
     /// A vector containing all the test cases to be potentially executed.
     /// 一个包含所有可能被执行的测试用例的向量。
     pub cases: Vec<TestCase>,

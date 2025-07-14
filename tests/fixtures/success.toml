@@ -1,0 +1,17 @@
+# A matrix where all test cases should pass.
+# 一个所有测试用例都应该通过的矩阵。
+language = "en"
+
+# A basic case with default features, which runs `default_test_passes`.
+# 一个使用默认功能的基本用例，会运行 `default_test_passes`。
+[[cases]]
+name = "default-case"
+features = ""
+no_default_features = false
+
+# This case enables `feature_a`, which runs `test_with_feature_a`.
+# 这个用例启用了 `feature_a`，会运行 `test_with_feature_a`。
+[[cases]]
+name = "feature-a-case"
+features = "feature_a"
+no_default_features = false 

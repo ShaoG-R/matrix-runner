@@ -62,6 +62,16 @@ struct Manifest {
 
 #[tokio::main]
 async fn main() {
+    // Initialize i18n with the default language ("en") at the very beginning.
+    // This allows us to use translated messages for early-stage errors, such as config
+    // file parsing failures. The `language` key in `TestMatrix.toml` will be parsed
+    // but does not currently override this initial setting.
+    //
+    // 在程序最开始就用默认语言（"en"）初始化 i18n 系统。
+    // 这使得我们可以在早期错误（例如配置文件解析失败）发生时也能使用翻译后的消息。
+    // `TestMatrix.toml` 中的 `language` 键会被解析，但目前不会覆盖此初始设置。
+    i18n::init("");
+
     // Parse command-line arguments.
     // 解析命令行参数。
     let args = Args::parse();
@@ -110,9 +120,20 @@ async fn main() {
     // Cargo 会将 crate 名称中的连字符转换成下划线作为符号名称。
     let crate_name = manifest.package.name.replace('-', "_");
 
-    // The config file path is relative to the project root.
-    // 配置文件路径是相对于项目根目录的。
-    let config_path = project_root.join(&args.config);
+    // The config file path is now resolved relative to the current working directory,
+    // not the project directory. This makes the behavior more predictable.
+    //
+    // 配置文件路径现在是相对于当前工作目录解析，而不是项目目录。
+    // 这使得行为更加可预测。
+    let config_path = fs::canonicalize(&args.config).unwrap_or_else(|e| {
+        panic!(
+            "{}",
+            i18n::t_fmt(
+                "config_read_failed_path",
+                &[&args.config.display(), &e]
+            )
+        )
+    });
 
     let config_content = fs::read_to_string(&config_path)
         .unwrap_or_else(|_| panic!("{}", i18n::t_fmt("config_read_failed", &[&config_path.display()])));
@@ -121,8 +142,11 @@ async fn main() {
         toml::from_str(&config_content).expect(i18n::t("config_parse_failed").as_str());
 
     // Initialize the i18n system based on the language specified in the test matrix config.
+    // NO LONGER NEEDED: We now initialize with a default language at the start.
+    //
     // 根据测试矩阵配置中指定的语言初始化 i18n 系统。
-    i18n::init(&test_matrix.language);
+    // 不再需要：我们现在在程序开始时使用默认语言进行初始化。
+    // i18n::init(&test_matrix.language);
 
     println!("{}", i18n::t_fmt("project_root_detected", &[&project_root.display()]));
     println!("{}", i18n::t_fmt("testing_crate", &[&crate_name.yellow()]));

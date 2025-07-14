@@ -1,0 +1,8 @@
+# This matrix contains a test case that is designed to fail during the test execution phase.
+# 这个矩阵包含一个被设计为在测试执行阶段失败的测试用例。
+language = "en"
+
+[[cases]]
+name = "test-failure-case"
+features = "feature_test_fail"
+no_default_features = false 

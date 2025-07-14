@@ -1,0 +1,17 @@
+[package]
+name = "sample_project"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+# A feature that enables a passing test
+# 一个能让测试通过的 feature
+feature_a = []
+
+# A feature that causes a build failure
+# 一个会导致构建失败的 feature
+feature_build_fail = []
+
+# A feature that causes a test to panic
+# 一个会导致测试 panic 的 feature
+feature_test_fail = [] 

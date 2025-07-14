@@ -156,10 +156,7 @@ pub fn print_summary(results: &[TestResult]) -> bool {
             };
             println!(
                 "  - {}",
-                i18n::t_fmt(
-                    "summary_unexpected_failure_case",
-                    &[&result.case.name.red(), &failure_type]
-                )
+                format!("{} ({})", result.case.name.red(), failure_type)
             );
         }
     }

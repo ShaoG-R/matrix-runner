@@ -28,12 +28,13 @@ test_skipped_due_to_cancellation = "Test skipped due to cancellation."
 temp_dir_cleanup_end_success = "Temporary build directories for successful tests have been cleaned up automatically."
 
 # Panics in main.rs (it's good practice to have them, even if panics aren't usually translated)
-project_dir_not_found = "Failed to find project directory at: {}"
+project_dir_not_found = "Project directory not found at '{}'"
 cargo_fetch_failed = "'cargo fetch' failed. Please check your network and Cargo.toml file."
-manifest_read_failed = "Failed to read Cargo.toml at: {}"
-manifest_parse_failed = "Failed to parse Cargo.toml"
-config_read_failed = "Failed to read config file: {}"
-config_parse_failed = "Failed to parse TOML config file"
+manifest_read_failed = "Failed to read manifest file at '{}'"
+manifest_parse_failed = "Failed to parse Cargo.toml manifest"
+config_read_failed = "Failed to read config file at '{}'"
+config_read_failed_path = "Failed to find or read config file at '{}': {}"
+config_parse_failed = "Failed to parse TestMatrix.toml config"
 runner_index_invalid = "--runner-index must be less than --total-runners."
 runner_flags_inconsistent = "--total-runners and --runner-index must be provided together."
 
@@ -67,7 +68,8 @@ cleanup_old_artifacts_failed = "Failed to clean up old error artifacts directory
 copy_artifacts_failed = "Failed to copy error artifacts for '{}': {}"
 find_executable_failed = "Could not find test executable in cargo output"
 queueing_test = "Queueing test: {}"
-finished_test = "Finished test: {} in {:.2?}"
+running_test = "Running test: {}"
+finished_test = "Finished test: {} in {}"
 test_failed_preserving = "Test '{}' failed. Preserving build artifacts in: {}"
 error_waiting_process_complete = "Error waiting for process to complete"
 
