@@ -28,6 +28,8 @@ use std::fs;
 use std::path::Path;
 
 use crate::runner::config::{TestCase, TestMatrix};
+use crate::runner::i18n;
+use crate::runner::i18n::I18nKey;
 
 /// The default name for the test matrix configuration file.
 /// This constant defines the standard filename used for test matrix configurations.
@@ -87,28 +89,26 @@ struct Manifest {
 ///
 /// 运行交互式向导以生成 `TestMatrix.toml` 文件。
 /// 此函数提供逐步指导过程，用于创建带有用户选择的测试用例模板的新测试矩阵配置文件。
-pub fn run_init_wizard() -> Result<()> {
+pub fn run_init_wizard(language: &str) -> Result<()> {
     let theme = ColorfulTheme::default();
     println!(
         "\n{}",
-        "Welcome to the matrix-runner setup wizard!".bold().cyan()
+        i18n::t(I18nKey::InitWizardWelcome).bold().cyan()
     );
-    println!("This will help you create a `TestMatrix.toml` file to configure your tests.\n");
+    println!("{}\n", i18n::t(I18nKey::InitWizardDescription));
 
     // Check if configuration file already exists and get user confirmation
     // 检查配置文件是否已存在并获取用户确认
     if !confirm_overwrite(&theme)? {
-        println!("{}", "Aborted.".yellow());
+        println!("{}", i18n::t(I18nKey::InitAborted).yellow());
         return Ok(());
     }
 
     // Attempt to detect the crate name, fallback to default if detection fails
     // 尝试检测 crate 名称，如果检测失败则回退到默认值
     let detected_crate_name = detect_crate_name().unwrap_or_else(|_| "my-crate".to_string());
-    println!(
-        "Detected crate name: {}",
-        detected_crate_name.clone().green()
-    );
+    let formatted_message = i18n::t_fmt(I18nKey::InitDetectedCrateName, &[&detected_crate_name]);
+    println!("{}", formatted_message);
 
     // Prompt user to select and configure test cases
     // 提示用户选择和配置测试用例
@@ -117,28 +117,28 @@ pub fn run_init_wizard() -> Result<()> {
     // Create the test matrix configuration
     // 创建测试矩阵配置
     let config = TestMatrix {
-        language: "en".to_string(),
+        language: language.to_string(),
         cases,
     };
 
     // Serialize the configuration to TOML format
     // 将配置序列化为 TOML 格式
     let toml_string = toml::to_string_pretty(&config)
-        .context("Failed to serialize configuration to TOML.")?;
+        .context(i18n::t(I18nKey::InitSerializeFailed).to_string())?;
 
     // Write the configuration to file
     // 将配置写入文件
     fs::write(CONFIG_FILE_NAME, toml_string)
-        .with_context(|| format!("Failed to write to {CONFIG_FILE_NAME}"))?;
+        .with_context(|| i18n::t_fmt(I18nKey::InitWriteFailed, &[&CONFIG_FILE_NAME]))?;
 
     // Display success message and next steps
     // 显示成功消息和后续步骤
     println!(
         "\n{} {}",
         "✔".green(),
-        format!("Successfully created `{CONFIG_FILE_NAME}`.").bold()
+        i18n::t_fmt(I18nKey::InitSuccessCreated, &[&CONFIG_FILE_NAME]).bold()
     );
-    println!("You can now run `matrix-runner` to execute your test matrix.");
+    println!("{}", i18n::t(I18nKey::InitUsageHint));
 
     Ok(())
 }
@@ -171,11 +171,9 @@ pub fn run_init_wizard() -> Result<()> {
 fn confirm_overwrite(theme: &ColorfulTheme) -> Result<bool> {
     if Path::new(CONFIG_FILE_NAME).exists() {
         Confirm::with_theme(theme)
-            .with_prompt(format!(
-                "`{CONFIG_FILE_NAME}` already exists. Do you want to overwrite it?"
-            ))
+            .with_prompt(i18n::t_fmt(I18nKey::InitOverwritePrompt, &[&CONFIG_FILE_NAME]))
             .interact()
-            .context("Failed to get user confirmation.")
+            .context(i18n::t(I18nKey::InitUserConfirmationFailed).to_string())
     } else {
         Ok(true)
     }
@@ -211,9 +209,9 @@ fn confirm_overwrite(theme: &ColorfulTheme) -> Result<bool> {
 fn detect_crate_name() -> Result<String> {
     let manifest_path = "Cargo.toml";
     let manifest_content =
-        fs::read_to_string(manifest_path).context("Could not find or read Cargo.toml.")?;
+        fs::read_to_string(manifest_path).context(i18n::t(I18nKey::InitCargoTomlNotFound).to_string())?;
     let manifest: Manifest =
-        toml::from_str(&manifest_content).context("Failed to parse Cargo.toml.")?;
+        toml::from_str(&manifest_content).context(i18n::t(I18nKey::InitCargoTomlParseFailed).to_string())?;
     Ok(manifest.package.name)
 }
 
@@ -258,23 +256,23 @@ fn prompt_for_cases(theme: &ColorfulTheme) -> Result<Vec<TestCase>> {
 
     // Define available test case templates
     // 定义可用的测试用例模板
-    let case_templates = &[
-        "Default features on stable Rust",
-        "No default features (`no_std` setup)",
-        "All features enabled",
-        "A custom command (e.g., for MIRI or wasm-pack)",
+    let case_templates = vec![
+        i18n::t(I18nKey::InitTemplateDefaultFeatures),
+        i18n::t(I18nKey::InitTemplateNoDefaultFeatures),
+        i18n::t(I18nKey::InitTemplateAllFeatures),
+        i18n::t(I18nKey::InitTemplateCustomCommand),
     ];
 
     // Present multi-selection interface to user
     // 向用户展示多选界面
     let selections = MultiSelect::with_theme(theme)
-        .with_prompt("Choose which test cases to generate (use space to select, enter to confirm)")
-        .items(&case_templates[..])
+        .with_prompt(i18n::t(I18nKey::InitCaseSelectionPrompt))
+        .items(&case_templates)
         .defaults(&[true, true, false, false]) // Pre-select first two / 预选前两个
         .interact()?;
 
     if selections.is_empty() {
-        println!("{}", "No test cases selected. Your config file will be minimal.".yellow());
+        println!("{}", i18n::t(I18nKey::InitNoCasesSelected).yellow());
     }
 
     // Configure test cases based on user selections
@@ -299,7 +297,7 @@ fn prompt_for_cases(theme: &ColorfulTheme) -> Result<Vec<TestCase>> {
         cases.push(TestCase {
             name: "stable-no-default-features".to_string(),
             features: Input::with_theme(theme)
-                .with_prompt("Enter comma-separated features for the `no_std` case (if any)")
+                .with_prompt(i18n::t(I18nKey::InitNoStdFeaturesPrompt))
                 .default("".into())
                 .interact_text()?,
             no_default_features: true,
@@ -315,7 +313,7 @@ fn prompt_for_cases(theme: &ColorfulTheme) -> Result<Vec<TestCase>> {
         cases.push(TestCase {
             name: "stable-all-features".to_string(),
             features: Input::with_theme(theme)
-                .with_prompt("Enter comma-separated list of ALL your crate's features")
+                .with_prompt(i18n::t(I18nKey::InitAllFeaturesPrompt))
                 .interact_text()?,
             no_default_features: false,
             command: None,
@@ -328,7 +326,7 @@ fn prompt_for_cases(theme: &ColorfulTheme) -> Result<Vec<TestCase>> {
     // 模板 3: 自定义命令（例如用于 MIRI 或 wasm-pack）
     if selections.contains(&3) {
         let cmd_input = Input::with_theme(theme)
-            .with_prompt("Enter the custom command to run")
+            .with_prompt(i18n::t(I18nKey::InitCustomCommandPrompt))
             .default("cargo miri test".into())
             .interact_text()?;
         cases.push(TestCase {

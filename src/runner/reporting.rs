@@ -294,45 +294,45 @@ pub fn generate_html_report(results: &[TestResult], output_path: &Path) -> Resul
             head {
                 meta charset="UTF-8";
                 meta name="viewport" content="width=device-width, initial-scale=1.0";
-                title { "Test Report" }
+                title { (i18n::t(I18nKey::HtmlReportTitle)) }
                 style { (PreEscaped(HTML_STYLE)) }
             }
             body {
                 div class="container" {
                     header {
-                        h1 { "Test Matrix Report" }
-                        p { "Generated on: " (report_date) }
+                        h1 { (i18n::t(I18nKey::HtmlReportTitle)) }
+                        p { (i18n::t_fmt(I18nKey::HtmlReportGeneratedOn, &[&report_date])) }
                     }
 
                     div class="summary" {
                         div class="summary-item" {
                             span class="count" style=(format!("color: {};", "var(--color-passed)")) { (passed_count) }
-                            span class="label" { "Passed" }
+                            span class="label" { (i18n::t(I18nKey::HtmlReportPassed)) }
                         }
                         div class="summary-item" {
                             span class="count" style=(format!("color: {};", "var(--color-failed)")) { (failed_count) }
-                            span class="label" { "Failed" }
+                            span class="label" { (i18n::t(I18nKey::HtmlReportFailed)) }
                         }
                         div class="summary-item" {
                             span class="count" style=(format!("color: {};", "var(--color-allowed-failure)")) { (allowed_failures_count) }
-                            span class="label" { "Allowed Failures" }
+                            span class="label" { (i18n::t(I18nKey::HtmlReportAllowedFailures)) }
                         }
                         div class="summary-item" {
                             span class="count" style=(format!("color: {};", "var(--color-skipped)")) { (skipped_count) }
-                            span class="label" { "Skipped" }
+                            span class="label" { (i18n::t(I18nKey::HtmlReportSkipped)) }
                         }
                         div class="summary-item" {
                             span class="count" { (total_count) }
-                            span class="label" { "Total" }
+                            span class="label" { (i18n::t(I18nKey::HtmlReportTotal)) }
                         }
                     }
 
                     table id="results-table" {
                         thead {
                             tr {
-                                th { "Name" }
-                                th { "Status" }
-                                th { "Output" }
+                                th { (i18n::t(I18nKey::HtmlReportNameColumn)) }
+                                th { (i18n::t(I18nKey::HtmlReportStatusColumn)) }
+                                th { (i18n::t(I18nKey::HtmlReportOutputColumn)) }
                             }
                         }
                         tbody {
@@ -346,7 +346,7 @@ pub fn generate_html_report(results: &[TestResult], output_path: &Path) -> Resul
                                     }
                                     td {
                                         @if !result.get_output().is_empty() {
-                                            a class="output-toggle" onclick=(format!("toggleOutput('output-{}')", i)) { "Show/Hide" }
+                                            a class="output-toggle" onclick=(format!("toggleOutput('output-{}')", i)) { (i18n::t(I18nKey::HtmlReportShowHide)) }
                                         }
                                     }
                                 }

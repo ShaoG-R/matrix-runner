@@ -60,7 +60,12 @@ struct RunArgs {
 
 /// Defines the command-line arguments for the `init` command.
 #[derive(Parser, Debug)]
-struct InitArgs {}
+struct InitArgs {
+    /// Language for the wizard interface and generated config file.
+    /// 向导界面和生成的配置文件的语言。
+    #[arg(short, long, default_value = "en")]
+    language: String,
+}
 
 /// Represents the `[package]` section of a Cargo.toml file.
 /// Used to extract the crate name.
@@ -86,8 +91,11 @@ async fn main() {
         Commands::Run(args) => {
             run_matrix_tests(args).await;
         }
-        Commands::Init(_args) => {
-            if let Err(e) = init::run_init_wizard() {
+        Commands::Init(args) => {
+            // Initialize i18n for the init wizard
+            // 为初始化向导初始化 i18n
+            i18n::init(&args.language);
+            if let Err(e) = init::run_init_wizard(&args.language) {
                 eprintln!("{} {}", "Error:".red(), e);
                 std::process::exit(1);
             }

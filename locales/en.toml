@@ -64,4 +64,42 @@ test_passed = "Test '{}' passed in {}"
 test_failed = "Test '{}' failed in {}"
 
 # utils.rs
-create_temp_dir_failed = "Failed to create temporary directory" 
+create_temp_dir_failed = "Failed to create temporary directory"
+
+# init.rs
+init_wizard_welcome = "Welcome to the matrix-runner setup wizard!"
+init_wizard_description = "This will help you create a `TestMatrix.toml` file to configure your tests."
+init_aborted = "Aborted."
+init_detected_crate_name = "Detected crate name: {}"
+init_overwrite_prompt = "`{}` already exists. Do you want to overwrite it?"
+init_case_selection_prompt = "Choose which test cases to generate (use space to select, enter to confirm)"
+init_no_cases_selected = "No test cases selected. Your config file will be minimal."
+init_no_std_features_prompt = "Enter comma-separated features for the `no_std` case (if any)"
+init_all_features_prompt = "Enter comma-separated list of ALL your crate's features"
+init_custom_command_prompt = "Enter the custom command to run"
+init_success_created = "Successfully created `{}`."
+init_usage_hint = "You can now run `matrix-runner` to execute your test matrix."
+init_serialize_failed = "Failed to serialize configuration to TOML."
+init_write_failed = "Failed to write to {}"
+init_cargo_toml_not_found = "Could not find or read Cargo.toml."
+init_cargo_toml_parse_failed = "Failed to parse Cargo.toml."
+init_user_confirmation_failed = "Failed to get user confirmation."
+
+# HTML report generation
+html_report_title = "Test Matrix Report"
+html_report_generated_on = "Generated on: {}"
+html_report_passed = "Passed"
+html_report_failed = "Failed"
+html_report_allowed_failures = "Allowed Failures"
+html_report_skipped = "Skipped"
+html_report_total = "Total"
+html_report_name_column = "Name"
+html_report_status_column = "Status"
+html_report_output_column = "Output"
+html_report_show_hide = "Show/Hide"
+
+# Test case templates for init wizard
+init_template_default_features = "Default features on stable Rust"
+init_template_no_default_features = "No default features (`no_std` setup)"
+init_template_all_features = "All features enabled"
+init_template_custom_command = "A custom command (e.g., for MIRI or wasm-pack)"

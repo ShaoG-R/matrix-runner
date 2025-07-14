@@ -64,4 +64,42 @@ test_passed = "测试 '{}' 通过，用时 {}"
 test_failed = "测试 '{}' 失败，用时 {}"
 
 # utils.rs
-create_temp_dir_failed = "创建临时目录失败" 
+create_temp_dir_failed = "创建临时目录失败"
+
+# init.rs
+init_wizard_welcome = "欢迎使用 matrix-runner 设置向导！"
+init_wizard_description = "这将帮助您创建一个 `TestMatrix.toml` 文件来配置您的测试。"
+init_aborted = "已中止。"
+init_detected_crate_name = "检测到的 crate 名称: {}"
+init_overwrite_prompt = "`{}` 已存在。您要覆盖它吗？"
+init_case_selection_prompt = "选择要生成的测试用例（使用空格键选择，回车键确认）"
+init_no_cases_selected = "未选择测试用例。您的配置文件将是最小的。"
+init_no_std_features_prompt = "为 `no_std` 用例输入逗号分隔的功能（如果有的话）"
+init_all_features_prompt = "输入您的 crate 的所有功能的逗号分隔列表"
+init_custom_command_prompt = "输入要运行的自定义命令"
+init_success_created = "成功创建了 `{}`。"
+init_usage_hint = "您现在可以运行 `matrix-runner` 来执行您的测试矩阵。"
+init_serialize_failed = "将配置序列化为 TOML 失败。"
+init_write_failed = "写入 {} 失败"
+init_cargo_toml_not_found = "找不到或无法读取 Cargo.toml。"
+init_cargo_toml_parse_failed = "解析 Cargo.toml 失败。"
+init_user_confirmation_failed = "获取用户确认失败。"
+
+# HTML 报告生成
+html_report_title = "测试矩阵报告"
+html_report_generated_on = "生成于: {}"
+html_report_passed = "通过"
+html_report_failed = "失败"
+html_report_allowed_failures = "允许的失败"
+html_report_skipped = "跳过"
+html_report_total = "总计"
+html_report_name_column = "名称"
+html_report_status_column = "状态"
+html_report_output_column = "输出"
+html_report_show_hide = "显示/隐藏"
+
+# 初始化向导的测试用例模板
+init_template_default_features = "稳定版 Rust 的默认功能"
+init_template_no_default_features = "无默认功能（`no_std` 设置）"
+init_template_all_features = "启用所有功能"
+init_template_custom_command = "自定义命令（例如用于 MIRI 或 wasm-pack）"
