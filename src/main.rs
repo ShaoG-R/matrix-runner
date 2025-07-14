@@ -126,13 +126,8 @@ async fn run_matrix_tests(args: RunArgs) {
 
     if let Some(report_path) = &args.html {
         println!("\nGenerating HTML report at: {}", report_path.display());
-        match runner::reporting::generate_html_report(&final_results, report_path) {
-            Ok(_) => (),
-            Err(e) => eprintln!(
-                "{} {:#?}",
-                "Failed to generate HTML report:".red(),
-                e
-            ),
+        if let Err(e) = runner::reporting::generate_html_report(&final_results, report_path) {
+            eprintln!("{} {}", "Failed to generate HTML report:".red(), e);
         }
     }
 

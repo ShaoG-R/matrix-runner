@@ -5,6 +5,7 @@ use crate::runner::models::{FailureReason, TestResult};
 use anyhow::{Context, Result};
 use chrono::Local;
 use colored::*;
+use maud::{html, PreEscaped};
 use std::fs;
 use std::path::Path;
 
@@ -44,15 +45,6 @@ pub fn print_unexpected_failure_details(unexpected_failures: &[&TestResult]) {
     );
 }
 
-// Helper to escape HTML characters.
-fn escape_html(input: &str) -> String {
-    input
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&#39;")
-}
 
 const HTML_STYLE: &str = r#"
 :root {
@@ -197,126 +189,86 @@ pub fn generate_html_report(results: &[TestResult], output_path: &Path) -> Resul
     let now = Local::now();
     let report_date = now.format("%Y-%m-%d %H:%M:%S").to_string();
 
-    let results_rows_html = results
-        .iter()
-        .enumerate()
-        .map(|(i, result)| {
-            let status_str = result.get_status_str().replace(' ', "-");
-            let output_toggle_html = if !result.get_output().is_empty() {
-                format!(
-                    r#"<a class="output-toggle" onclick="toggleOutput('output-{}')">Show/Hide</a>"#,
-                    i
-                )
-            } else {
-                String::new()
-            };
+    let markup = html! {
+        (maud::DOCTYPE)
+        html lang="en" {
+            head {
+                meta charset="UTF-8";
+                meta name="viewport" content="width=device-width, initial-scale=1.0";
+                title { "Test Report" }
+                style { (PreEscaped(HTML_STYLE)) }
+            }
+            body {
+                div class="container" {
+                    header {
+                        h1 { "Test Matrix Report" }
+                        p { "Generated on: " (report_date) }
+                    }
 
-            let output_row_html = if !result.get_output().is_empty() {
-                format!(
-                    r#"
-                <tr class="output-row">
-                    <td colspan="3">
-                        <pre class="output-content" id="output-{}">{}</pre>
-                    </td>
-                </tr>"#,
-                    i,
-                    escape_html(result.get_output())
-                )
-            } else {
-                String::new()
-            };
+                    div class="summary" {
+                        div class="summary-item" {
+                            span class="count" style=(format!("color: {};", "var(--color-passed)")) { (passed_count) }
+                            span class="label" { "Passed" }
+                        }
+                        div class="summary-item" {
+                            span class="count" style=(format!("color: {};", "var(--color-failed)")) { (failed_count) }
+                            span class="label" { "Failed" }
+                        }
+                        div class="summary-item" {
+                            span class="count" style=(format!("color: {};", "var(--color-allowed-failure)")) { (allowed_failures_count) }
+                            span class="label" { "Allowed Failures" }
+                        }
+                        div class="summary-item" {
+                            span class="count" style=(format!("color: {};", "var(--color-skipped)")) { (skipped_count) }
+                            span class="label" { "Skipped" }
+                        }
+                        div class="summary-item" {
+                            span class="count" { (total_count) }
+                            span class="label" { "Total" }
+                        }
+                    }
 
-            format!(
-                r#"
-            <tr>
-                <td>{}</td>
-                <td>
-                    <span class="status-badge status-{}">
-                        {}
-                    </span>
-                </td>
-                <td>{}</td>
-            </tr>
-            {}"#,
-                escape_html(result.get_name()),
-                status_str,
-                escape_html(result.get_status_str()),
-                output_toggle_html,
-                output_row_html
-            )
-        })
-        .collect::<String>();
+                    table id="results-table" {
+                        thead {
+                            tr {
+                                th { "Name" }
+                                th { "Status" }
+                                th { "Output" }
+                            }
+                        }
+                        tbody {
+                            @for (i, result) in results.iter().enumerate() {
+                                tr {
+                                    td { (result.get_name()) }
+                                    td {
+                                        span class=(format!("status-badge status-{}", result.get_status_str().replace(' ', "-"))) {
+                                            (result.get_status_str())
+                                        }
+                                    }
+                                    td {
+                                        @if !result.get_output().is_empty() {
+                                            a class="output-toggle" onclick=(format!("toggleOutput('output-{}')", i)) { "Show/Hide" }
+                                        }
+                                    }
+                                }
+                                @if !result.get_output().is_empty() {
+                                    tr class="output-row" {
+                                        td colspan="3" {
+                                            pre class="output-content" id=(format!("output-{}", i)) { (result.get_output()) }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
 
-    let html = format!(
-        r#"
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test Report</title>
-    <style>{style}</style>
-</head>
-<body>
-    <div class="container">
-        <header>
-            <h1>Test Matrix Report</h1>
-            <p>Generated on: {date}</p>
-        </header>
+                script { (PreEscaped(HTML_SCRIPT)) }
+            }
+        }
+    };
 
-        <div class="summary">
-            <div class="summary-item">
-                <span class="count" style="color: var(--color-passed);">{passed}</span>
-                <span class="label">Passed</span>
-            </div>
-            <div class="summary-item">
-                <span class="count" style="color: var(--color-failed);">{failed}</span>
-                <span class="label">Failed</span>
-            </div>
-            <div class="summary-item">
-                <span class="count" style="color: var(--color-allowed-failure);">{allowed_failures}</span>
-                <span class="label">Allowed Failures</span>
-            </div>
-            <div class="summary-item">
-                <span class="count" style="color: var(--color-skipped);">{skipped}</span>
-                <span class="label">Skipped</span>
-            </div>
-             <div class="summary-item">
-                <span class="count">{total}</span>
-                <span class="label">Total</span>
-            </div>
-        </div>
-
-        <table id="results-table">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Status</th>
-                    <th>Output</th>
-                </tr>
-            </thead>
-            <tbody>
-                {results_rows}
-            </tbody>
-        </table>
-    </div>
-
-    <script>{script}</script>
-</body>
-</html>
-"#,
-        style = HTML_STYLE,
-        script = HTML_SCRIPT,
-        date = report_date,
-        passed = passed_count,
-        failed = failed_count,
-        allowed_failures = allowed_failures_count,
-        skipped = skipped_count,
-        total = total_count,
-        results_rows = results_rows_html
-    );
-
-    fs::write(output_path, html)
+    fs::write(output_path, markup.into_string())
         .with_context(|| format!("Failed to write HTML report to {}", output_path.display()))?;
 
     Ok(())
