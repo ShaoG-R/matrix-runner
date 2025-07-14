@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 description = "A powerful, configuration-driven test executor for Rust projects to run tests across a wide matrix of feature flags and environments."
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/your-username/matrix-runner" # <-- 请记得替换成你的仓库地址
+repository = "https://github.com/GlorYouth/matrix-runner"
 keywords = ["cli", "testing", "automation", "rust", "matrix"]
 categories = ["command-line-utilities", "development-tools::testing"]
 
