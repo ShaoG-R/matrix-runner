@@ -1,0 +1,314 @@
+[[cases]]
+name = "std-default"
+features = ""
+no_default_features = false
+allow_failure = []
+
+[[cases]]
+name = "std-classic"
+features = "classic"
+no_default_features = false
+allow_failure = []
+
+[[cases]]
+name = "std-pqc"
+features = "pqc"
+no_default_features = false
+allow_failure = []
+
+[[cases]]
+name = "std-kdf"
+features = "kdf"
+no_default_features = false
+allow_failure = []
+
+[[cases]]
+name = "std-xof"
+features = "xof"
+no_default_features = false
+allow_failure = []
+
+[[cases]]
+name = "std-full"
+features = "full"
+no_default_features = false
+allow_failure = []
+
+[[cases]]
+name = "std-full-no-serde"
+features = "classic,pqc,kdf,xof"
+no_default_features = false
+allow_failure = []
+
+[[cases]]
+name = "std-rsa"
+features = "rsa"
+no_default_features = false
+allow_failure = []
+
+[[cases]]
+name = "std-kyber"
+features = "kyber"
+no_default_features = false
+allow_failure = []
+
+[[cases]]
+name = "std-dilithium"
+features = "dilithium"
+no_default_features = false
+allow_failure = []
+
+[[cases]]
+name = "std-aes-gcm"
+features = "aes-gcm"
+no_default_features = false
+allow_failure = []
+
+[[cases]]
+name = "std-chacha20-poly1305"
+features = "chacha20-poly1305"
+no_default_features = false
+allow_failure = []
+
+[[cases]]
+name = "std-sha2"
+features = "sha2"
+no_default_features = false
+allow_failure = []
+
+[[cases]]
+name = "std-ecc"
+features = "ecc"
+no_default_features = false
+allow_failure = []
+
+[[cases]]
+name = "std-ecdh"
+features = "ecdh"
+no_default_features = false
+allow_failure = []
+
+[[cases]]
+name = "std-hkdf"
+features = "hkdf"
+no_default_features = false
+allow_failure = []
+
+[[cases]]
+name = "std-pbkdf2"
+features = "pbkdf2"
+no_default_features = false
+allow_failure = []
+
+[[cases]]
+name = "std-shake"
+features = "shake"
+no_default_features = false
+allow_failure = []
+
+[[cases]]
+name = "std-argon2"
+features = "argon2"
+no_default_features = false
+allow_failure = []
+
+[[cases]]
+name = "std-classic-asm"
+features = "classic,ecc-asm,sha2-asm"
+no_default_features = false
+allow_failure = ["windows"]
+arch = ["x86", "x86_64"]
+
+[[cases]]
+name = "std-pqc-avx2"
+features = "pqc,kyber-avx2,dilithium-avx2"
+no_default_features = false
+allow_failure = []
+arch = ["x86", "x86_64"]
+
+[[cases]]
+name = "std-full-optimized"
+features = "full,kyber-avx2,dilithium-avx2,sha2-asm,ecc-asm,shake-asm"
+no_default_features = false
+allow_failure = ["windows"]
+arch = ["x86", "x86_64"]
+
+[[cases]]
+name = "no_std-base"
+features = ""
+no_default_features = true
+allow_failure = []
+
+[[cases]]
+name = "no_std-classic"
+features = "no-std-classic,no-std-ecdh"
+no_default_features = true
+allow_failure = []
+
+[[cases]]
+name = "no_std-pqc"
+features = "no-std-pqc"
+no_default_features = true
+allow_failure = []
+
+[[cases]]
+name = "no_std-kdf"
+features = "no-std-kdf,sha2"
+no_default_features = true
+allow_failure = []
+
+[[cases]]
+name = "no_std-xof"
+features = "no-std-xof"
+no_default_features = true
+allow_failure = []
+
+[[cases]]
+name = "no_std-full"
+features = "no-std-full"
+no_default_features = true
+allow_failure = []
+
+[[cases]]
+name = "no_std-full-no-serde"
+features = "no-std-classic,no-std-pqc,no-std-kdf,no-std-xof"
+no_default_features = true
+allow_failure = []
+
+[[cases]]
+name = "no_std-classic-asm"
+features = "no-std-classic,no-std-ecdh,ecc-asm,sha2-asm"
+no_default_features = true
+allow_failure = ["windows"]
+arch = ["x86", "x86_64"]
+
+[[cases]]
+name = "no_std-pqc-avx2"
+features = "no-std-pqc,kyber-avx2,dilithium-avx2"
+no_default_features = true
+allow_failure = []
+arch = ["x86", "x86_64"]
+
+[[cases]]
+name = "no_std-full-optimized"
+features = "no-std-full,kyber-avx2,dilithium-avx2,sha2-asm,ecc-asm,shake-asm"
+no_default_features = true
+allow_failure = ["windows"]
+arch = ["x86", "x86_64"]
+
+# 添加单独的 no-std 算法测试
+
+[[cases]]
+name = "no_std-rsa"
+features = "no-std-rsa"
+no_default_features = true
+allow_failure = []
+
+[[cases]]
+name = "no_std-kyber"
+features = "no-std-kyber"
+no_default_features = true
+allow_failure = []
+
+[[cases]]
+name = "no_std-dilithium"
+features = "no-std-dilithium"
+no_default_features = true
+allow_failure = []
+
+[[cases]]
+name = "no_std-aes-gcm"
+features = "no-std-aes-gcm"
+no_default_features = true
+allow_failure = []
+
+[[cases]]
+name = "no_std-chacha20-poly1305"
+features = "no-std-chacha20poly1305"
+no_default_features = true
+allow_failure = []
+
+[[cases]]
+name = "no_std-sha2"
+features = "sha2"
+no_default_features = true
+allow_failure = []
+
+[[cases]]
+name = "no_std-ecc"
+features = "no-std-ecc"
+no_default_features = true
+allow_failure = []
+
+[[cases]]
+name = "no_std-ecdh"
+features = "no-std-ecdh"
+no_default_features = true
+allow_failure = []
+
+[[cases]]
+name = "no_std-hkdf"
+features = "no-std-hkdf"
+no_default_features = true
+allow_failure = []
+
+[[cases]]
+name = "no_std-pbkdf2"
+features = "no-std-pbkdf2"
+no_default_features = true
+allow_failure = []
+
+[[cases]]
+name = "no_std-shake"
+features = "no-std-shake"
+no_default_features = true
+allow_failure = []
+
+[[cases]]
+name = "no_std-argon2"
+features = "no-std-argon2"
+no_default_features = true
+allow_failure = []
+
+# Arch-specific tests
+[[cases]]
+name = "std-sha3-asm"
+features = "shake,sha3-asm"
+no_default_features = false
+allow_failure = ["windows"]
+arch = ["x86", "x86_64"]
+
+[[cases]]
+name = "no_std-sha3-asm"
+features = "no-std-shake,sha3-asm"
+no_default_features = true
+allow_failure = ["windows"]
+arch = ["x86", "x86_64"]
+
+[[cases]]
+name = "std-sha2-asm-aarch64"
+features = "sha2,sha2-asm-aarch64"
+no_default_features = false
+allow_failure = []
+arch = ["aarch64"]
+
+[[cases]]
+name = "no_std-sha2-asm-aarch64"
+features = "sha2,sha2-asm-aarch64"
+no_default_features = true
+allow_failure = []
+arch = ["aarch64"]
+
+[[cases]]
+name = "std-sha2-loongarch64-asm"
+features = "sha2,sha2-loongarch64-asm"
+no_default_features = false
+allow_failure = []
+arch = ["loongarch64"]
+
+[[cases]]
+name = "no_std-sha2-loongarch64-asm"
+features = "sha2,sha2-loongarch64-asm"
+no_default_features = true
+allow_failure = []
+arch = ["loongarch64"] 
