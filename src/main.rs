@@ -3,7 +3,7 @@ use colored::*;
 use futures::{StreamExt, stream};
 use serde::Deserialize;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tokio::signal;
 use tokio_util::sync::CancellationToken;
 
