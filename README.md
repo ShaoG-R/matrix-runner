@@ -27,16 +27,26 @@ cargo install matrix-runner
 
 ## Usage
 
-Navigate to your Rust project's root directory and run:
+Navigate to your Rust project's root directory.
 
+### Initialize Configuration (First-time users)
+To create a new `TestMatrix.toml` configuration file interactively, run:
 ```bash
-matrix-runner [OPTIONS]
+matrix-runner init
+```
+This wizard will guide you through creating a basic set of test cases.
+
+### Run Tests
+To execute the test matrix, use the `run` command:
+```bash
+matrix-runner run [OPTIONS]
 ```
 
-### Key Options:
+### Key Options (for `run` command):
 
 - `-c, --config <PATH>`: Path to the test matrix config file. Defaults to `TestMatrix.toml`.
 - `-j, --jobs <NUMBER>`: Number of parallel jobs to run. Defaults to a sensible value based on your logical CPU cores.
+- `--html <PATH>`: Path to write an HTML report to. If provided, a report will be generated after the tests complete.
 - `--project-dir <PATH>`: Path to the project directory to test. Defaults to the current directory (`.`).
 - `--total-runners <NUMBER>`: The total number of parallel runners you are splitting the tests across (for CI).
 - `--runner-index <NUMBER>`: The 0-based index of the current runner.
@@ -66,6 +76,7 @@ The behavior of `matrix-runner` is controlled by a TOML file (e.g., `TestMatrix.
 - `name` (String, required): A unique, human-readable name for the test case.
 - `features` (String, required): A comma-separated list of features to enable for this test run.
 - `no_default_features` (Boolean, required): If `true`, the `--no-default-features` flag is passed to Cargo.
+- `command` (String, optional): A custom command to execute for the test case. If provided, `matrix-runner` will execute this command instead of its default `cargo test` routine. This is useful for running tests with tools like `wasm-pack` or for executing non-Cargo based tests. Environment variables (like `$HOME` or `${VAR}`) are supported.
 - `allow_failure` (Array of Strings, optional): A list of OS or architecture identifiers (e.g., `"windows"`, `"aarch64"`) where this case is allowed to fail without stopping the entire test suite.
 - `arch` (Array of Strings, optional): A list of architectures this test is valid for. If the host machine's architecture is not in this list, the test is skipped.
 
@@ -75,27 +86,37 @@ The behavior of `matrix-runner` is controlled by a TOML file (e.g., `TestMatrix.
 # TestMatrix.toml
 
 # Global setting for output language
-language = "zh-CN"
+language = "en"
 
-# A basic case with default features
+# A basic case using the default Cargo test flow
 [[cases]]
-name = "std-default"
-features = ""
+name = "stable-default-features"
+features = "full"
 no_default_features = false
 
-# A no_std case, enabling a specific feature
+# A no_std case
 [[cases]]
-name = "no_std-minimal"
-features = "some-feature"
+name = "stable-no-std"
+features = "core"
 no_default_features = true
 
 # A case that runs only on x86_64 and is allowed to fail on Windows
 [[cases]]
 name = "x64-specific-optimized"
-features = "avx2-optimizations"
+features = "avx2"
 no_default_features = false
 arch = ["x86_64"]
 allow_failure = ["windows"]
+
+# A case using a custom command to run wasm-pack tests
+[[cases]]
+name = "wasm-tests"
+command = "wasm-pack test --node"
+
+# A case that uses an environment variable in a custom command
+[[cases]]
+name = "nightly-with-extra-flag"
+command = "cargo +nightly test -- --my-flag ${MY_FLAG}"
 ```
 
 ## License

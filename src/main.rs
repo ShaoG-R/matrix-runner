@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use colored::*;
 use futures::{StreamExt, stream};
 use serde::Deserialize;
@@ -12,38 +12,55 @@ mod runner;
 use runner::config::TestMatrix;
 use runner::execution::run_test_case;
 use runner::i18n;
+use runner::init;
 use runner::reporting::{print_summary, print_unexpected_failure_details};
 
-/// Defines the command-line arguments for the application.
-/// 定义了应用程序的命令行参数。
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
-struct Args {
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand, Debug)]
+enum Commands {
+    /// Run tests based on the matrix configuration (default command).
+    Run(RunArgs),
+    /// Launch an interactive wizard to create a new TestMatrix.toml file.
+    Init(InitArgs),
+}
+
+/// Defines the command-line arguments for the `run` command.
+#[derive(Parser, Debug, Default)]
+struct RunArgs {
     /// Number of parallel jobs, defaults to (logical CPUs / 2) + 1.
-    /// 并行作业的数量，默认为 (逻辑 CPU / 2) + 1。
     #[arg(short, long)]
     jobs: Option<usize>,
 
     /// Path to the test matrix config file, relative to project dir.
-    /// 测试矩阵配置文件的路径，相对于项目目录。
     #[arg(short, long, default_value = "TestMatrix.toml")]
     config: PathBuf,
 
     /// Path to the project directory to test.
-    /// 要测试的项目目录的路径。
     #[arg(long, default_value = ".")]
     project_dir: PathBuf,
 
     /// Total number of parallel runners for splitting the test matrix.
-    /// 用于拆分测试矩阵的并行运行器总数。
     #[arg(long)]
     total_runners: Option<usize>,
 
     /// Index of the current runner (0-based) when splitting the test matrix.
-    /// 拆分测试矩阵时当前运行器的索引（从 0 开始）。
     #[arg(long)]
     runner_index: Option<usize>,
+
+    /// Path to write an HTML report to. If provided, a report will be generated.
+    #[arg(long)]
+    html: Option<PathBuf>,
 }
+
+/// Defines the command-line arguments for the `init` command.
+#[derive(Parser, Debug)]
+struct InitArgs {}
 
 /// Represents the `[package]` section of a Cargo.toml file.
 /// Used to extract the crate name.
@@ -63,7 +80,23 @@ struct Manifest {
 
 #[tokio::main]
 async fn main() {
-    let (args, test_matrix, config_path) = setup_and_parse_args();
+    let cli = Cli::parse();
+
+    match cli.command {
+        Commands::Run(args) => {
+            run_matrix_tests(args).await;
+        }
+        Commands::Init(_args) => {
+            if let Err(e) = init::run_init_wizard() {
+                eprintln!("{} {}", "Error:".red(), e);
+                std::process::exit(1);
+            }
+        }
+    }
+}
+
+async fn run_matrix_tests(args: RunArgs) {
+    let (test_matrix, config_path) = setup_and_parse_config(&args);
     i18n::init(&test_matrix.language);
 
     let (project_root, crate_name) = prepare_environment(&args).await;
@@ -80,13 +113,45 @@ async fn main() {
         std::process::exit(0);
     }
 
-    run_tests(cases_to_run, args.jobs.unwrap_or(num_cpus::get() / 2 + 1), &project_root, &crate_name, overall_stop_token).await;
+    let (final_results, has_unexpected_failures) = run_tests(
+        cases_to_run,
+        args.jobs.unwrap_or(num_cpus::get() / 2 + 1),
+        &project_root,
+        &crate_name,
+        overall_stop_token,
+    )
+    .await;
+
+    print_summary(&final_results);
+
+    if let Some(report_path) = &args.html {
+        println!("\nGenerating HTML report at: {}", report_path.display());
+        match runner::reporting::generate_html_report(&final_results, report_path) {
+            Ok(_) => (),
+            Err(e) => eprintln!(
+                "{} {:#?}",
+                "Failed to generate HTML report:".red(),
+                e
+            ),
+        }
+    }
+
+    if has_unexpected_failures {
+        let unexpected_failures: Vec<_> = final_results
+            .iter()
+            .filter(|r| r.is_unexpected_failure())
+            .collect();
+        print_unexpected_failure_details(&unexpected_failures);
+        std::process::exit(1);
+    } else {
+        println!("\n{}", i18n::t(I18nKey::AllTestsPassed).green().bold());
+        std::process::exit(0);
+    }
 }
 
 /// Sets up command-line arguments and loads the test matrix configuration.
 /// 设置命令行参数并加载测试矩阵配置。
-fn setup_and_parse_args() -> (Args, TestMatrix, PathBuf) {
-    let args = Args::parse();
+fn setup_and_parse_config(args: &RunArgs) -> (TestMatrix, PathBuf) {
     let config_path = fs::canonicalize(&args.config).unwrap_or_else(|e| {
         panic!(
             "{}: {}",
@@ -98,12 +163,12 @@ fn setup_and_parse_args() -> (Args, TestMatrix, PathBuf) {
         .unwrap_or_else(|_| panic!("{}", i18n::t_fmt(I18nKey::ConfigReadFailedPath, &[&config_path.display()])));
     let test_matrix: TestMatrix =
         toml::from_str(&config_content).expect(i18n::t(I18nKey::ConfigParseFailed).as_str());
-    (args, test_matrix, config_path)
+    (test_matrix, config_path)
 }
 
 /// Prepares the testing environment by fetching dependencies and identifying the crate name.
 /// 通过预取依赖和识别 crate 名称来准备测试环境。
-async fn prepare_environment(args: &Args) -> (PathBuf, String) {
+async fn prepare_environment(args: &RunArgs) -> (PathBuf, String) {
     let project_root = fs::canonicalize(&args.project_dir).unwrap_or_else(|_| {
         panic!("{}", i18n::t_fmt(I18nKey::ProjectDirNotFound, &[&args.project_dir.display()]))
     });
@@ -143,7 +208,7 @@ fn setup_signal_handler() -> CancellationToken {
 
 /// Filters test cases based on architecture and distributes them for parallel runners.
 /// 根据架构筛选测试用例并为并行运行器分发它们。
-fn filter_and_distribute_cases(test_matrix: TestMatrix, args: &Args) -> Vec<runner::config::TestCase> {
+fn filter_and_distribute_cases(test_matrix: TestMatrix, args: &RunArgs) -> Vec<runner::config::TestCase> {
     let total_cases_count = test_matrix.cases.len();
     let current_arch = std::env::consts::ARCH;
     println!("{}", i18n::t_fmt(I18nKey::CurrentArch, &[&current_arch.yellow()]));
@@ -190,6 +255,9 @@ async fn run_tests(
     project_root: &PathBuf,
     crate_name: &str,
     overall_stop_token: CancellationToken,
+) -> (
+    Vec<runner::models::TestResult>, // final_results
+    bool,                             // has_unexpected_failures
 ) {
     println!("{}", i18n::t(I18nKey::TempDirCleanupInfo).green());
     println!("{}", i18n::t(I18nKey::FailureArtifactInfo).yellow());
@@ -228,7 +296,7 @@ async fn run_tests(
     let mut safe_processed_stream = safe_stream.buffer_unordered(jobs);
     while let Some(result) = safe_processed_stream.next().await {
         let test_result = result.unwrap();
-        if let runner::models::TestResult::Failed { .. } = &test_result {
+        if test_result.is_unexpected_failure() {
             if !fast_fail_token.is_cancelled() {
                 println!("\n{}", i18n::t(I18nKey::FastFailTriggered).red().bold());
                 fast_fail_token.cancel();
@@ -257,11 +325,6 @@ async fn run_tests(
         }
     }
 
-    let unexpected_failures = print_summary(&results);
-    if !unexpected_failures.is_empty() {
-        print_unexpected_failure_details(&unexpected_failures);
-        std::process::exit(1);
-    } else {
-        println!("\n{}", i18n::t(I18nKey::AllTestsPassed).green().bold());
-    }
+    let has_unexpected_failures = results.iter().any(|r| r.is_unexpected_failure());
+    (results, has_unexpected_failures)
 }

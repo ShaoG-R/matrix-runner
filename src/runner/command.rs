@@ -59,41 +59,32 @@ pub fn format_build_error_output(raw_output: &str) -> String {
     }
 }
 
-/// Spawns a command, captures its stdout and stderr, and allows for cancellation.
+/// Spawns a command, captures its stdout and stderr.
 /// The output streams are read concurrently and combined into a single string.
-/// If a `stop_token` is provided, the function will listen for cancellation.
-/// If cancelled, it attempts to kill the child process and returns immediately.
 ///
 /// # Arguments
 /// * `cmd` - The `tokio::process::Command` to execute.
-/// * `stop_token` - An optional `CancellationToken` to signal the process to terminate.
 ///
 /// # Returns
 /// A tuple containing:
 /// - The `ExitStatus` of the process wrapped in an `io::Result`.
 /// - The combined stdout and stderr as a `String`.
-/// - A boolean `was_cancelled` which is true if the process was terminated due to the token.
 ///
-/// 派生一个命令，捕获其 stdout 和 stderr，并允许取消。
+/// 派生一个命令，捕获其 stdout 和 stderr。
 /// 输出流被并发读取并合并到一个字符串中。
-/// 如果提供了 `stop_token`，该函数将监听取消信号。
-/// 如果被取消，它会尝试终止子进程并立即返回。
 ///
 /// # Arguments
 /// * `cmd` - 要执行的 `tokio::process::Command`。
-/// * `stop_token` - 一个可选的 `CancellationToken`，用于通知进程终止。
 ///
 /// # Returns
 /// 一个元组，包含：
 /// - 进程的 `ExitStatus`（包装在 `io::Result` 中）。
 /// - 合并的 stdout 和 stderr，为一个 `String`。
-/// - 一个布尔值 `was_cancelled`，如果进程因令牌而终止，则为 true。
 pub async fn spawn_and_capture(
     mut cmd: tokio::process::Command,
 ) -> (
     std::io::Result<std::process::ExitStatus>,
     String,
-    bool, // was_cancelled
 ) {
     // Configure the command to capture stdout and stderr.
     // 配置命令以捕获 stdout 和 stderr。
@@ -106,18 +97,34 @@ pub async fn spawn_and_capture(
         Err(e) => {
             // If spawning fails, we return the error and an empty string for the output.
             // 如果派生失败，我们返回错误和空字符串作为输出。
-            return (Err(e), String::new(), false);
+            return (Err(e), String::new());
         }
     };
 
-    let stdout = child
-        .stdout
-        .take()
-        .expect(&i18n::t(I18nKey::CaptureStdoutFailed));
-    let stderr = child
-        .stderr
-        .take()
-        .expect(&i18n::t(I18nKey::CaptureStderrFailed));
+    let stdout = match child.stdout.take() {
+        Some(stdout) => stdout,
+        None => {
+            return (
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    i18n::t(I18nKey::CaptureStdoutFailed),
+                )),
+                String::new(),
+            )
+        }
+    };
+    let stderr = match child.stderr.take() {
+        Some(stderr) => stderr,
+        None => {
+            return (
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    i18n::t(I18nKey::CaptureStderrFailed),
+                )),
+                String::new(),
+            )
+        }
+    };
 
     // Use an Arc<Mutex<String>> to allow concurrent writes from stdout and stderr tasks.
     // 使用 Arc<Mutex<String>> 来允许多个任务（stdout 和 stderr）并发写入。
@@ -149,15 +156,14 @@ pub async fn spawn_and_capture(
         }
     });
 
-    // Wait for the process to exit or for the cancellation token to be triggered.
-    // 等待进程退出或取消令牌被触发。
+    // Wait for the process to exit.
+    // 等待进程退出。
     let status = child.wait().await;
-    let was_cancelled = false; // Cancellation is now handled by the caller via `tokio::select!`
 
     // Wait for the stdout and stderr reading tasks to complete to ensure all output is captured.
     // 等待 stdout 和 stderr 读取任务完成，以确保所有输出都被捕获。
     stdout_handle.await.unwrap();
     stderr_handle.await.unwrap();
 
-    (status, output.lock().await.clone(), was_cancelled)
+    (status, output.lock().await.clone())
 }

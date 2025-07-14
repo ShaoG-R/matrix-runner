@@ -1,0 +1,7 @@
+language = "en"
+
+[[cases]]
+name = "custom-echo"
+command = "echo 'Custom command executed successfully!'"
+features = ""
+no_default_features = false 

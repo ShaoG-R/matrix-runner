@@ -27,16 +27,26 @@ cargo install matrix-runner
 
 ## 使用方法
 
-导航到您的 Rust 项目根目录并运行：
+导航到您的 Rust 项目根目录。
 
+### 初始化配置 (首次使用)
+要通过交互式向导创建一个新的 `TestMatrix.toml` 配置文件，请运行：
 ```bash
-matrix-runner [OPTIONS]
+matrix-runner init
+```
+该向导将引导您创建一组基本的测试用例。
+
+### 运行测试
+要执行测试矩阵，请使用 `run` 命令：
+```bash
+matrix-runner run [OPTIONS]
 ```
 
-### 主要选项:
+### 主要选项 (用于 `run` 命令):
 
 - `-c, --config <PATH>`: 测试矩阵配置文件的路径。默认为 `TestMatrix.toml`。
 - `-j, --jobs <NUMBER>`: 要运行的并行任务数。默认值为根据您的逻辑 CPU 核心数计算的合理值。
+- `--html <PATH>`: 用于写入 HTML 报告的路径。如果提供此选项，测试完成后将生成一份报告。
 - `--project-dir <PATH>`: 要测试的项目的路径。默认为当前目录 (`.`)。
 - `--total-runners <NUMBER>`: 用于拆分测试的并行执行器总数（用于 CI）。
 - `--runner-index <NUMBER>`: 当前执行器的索引（从 0 开始）。

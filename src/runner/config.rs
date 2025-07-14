@@ -1,10 +1,10 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// Represents a single test case defined in the test matrix configuration.
 /// Each `TestCase` corresponds to a specific build and test configuration.
 /// 代表测试矩阵配置中定义的单个测试用例。
 /// 每个 `TestCase` 对应一个特定的构建和测试配置。
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TestCase {
     /// The unique name for the test case, used for identification in logs.
     /// 测试用例的唯一名称，用于在日志中进行识别。
@@ -15,6 +15,12 @@ pub struct TestCase {
     /// If `true`, the `--no-default-features` flag will be used during the build.
     /// 如果为 `true`，则在构建期间将使用 `--no-default-features` 标志。
     pub no_default_features: bool,
+    /// An optional custom command to run for this test case. If not provided,
+    /// a default `cargo test` command will be constructed.
+    /// 为此测试用例运行的可选自定义命令。如果未提供，
+    /// 则会构建一个默认的 `cargo test` 命令。
+    #[serde(default)]
+    pub command: Option<String>,
     /// A list of operating systems (e.g., "windows", "linux") on which this
     /// test case is allowed to fail without causing the overall run to fail.
     /// 一个操作系统列表（例如 "windows", "linux"），在此列表中的系统上，
@@ -33,7 +39,7 @@ pub struct TestCase {
 /// It contains global settings and a list of all test cases.
 /// 代表从 TOML 文件加载的整个测试矩阵配置。
 /// 它包含全局设置和所有测试用例的列表。
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct TestMatrix {
     /// The language for the runner's output messages (e.g., "en", "zh-CN").
     /// Defaults to "en" if not specified.

@@ -1,5 +1,5 @@
 use crate::runner::config::TestCase;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tempfile::TempDir;
 
@@ -7,7 +7,7 @@ use tempfile::TempDir;
 /// This helps in categorizing errors for reporting and handling.
 /// 枚举测试用例失败的可能原因。
 /// 这有助于对错误进行分类，以便报告和处理。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum FailureReason {
     /// The test case failed during the `cargo build` or `cargo test --no-run` phase.
     /// 测试用例在 `cargo build` 或 `cargo test --no-run` 阶段失败。
@@ -34,6 +34,58 @@ pub enum TestResult {
     },
     /// The test case was skipped.
     Skipped,
+}
+
+impl TestResult {
+    /// Checks if a test result is a failure that was not explicitly allowed.
+    /// A failure is "unexpected" if it's a `Failed` variant and the current OS
+    /// is not in the test case's `allow_failure` list.
+    pub fn is_unexpected_failure(&self) -> bool {
+        match self {
+            TestResult::Failed { case, .. } => {
+                !case.allow_failure.iter().any(|s| s == std::env::consts::OS)
+            }
+            _ => false,
+        }
+    }
+}
+
+impl TestResult {
+    /// Gets the name of the test case. Returns "Skipped" for skipped tests.
+    /// 获取测试用例的名称。对于跳过的测试，返回 "Skipped"。
+    pub fn get_name(&self) -> &str {
+        match self {
+            TestResult::Passed { case, .. } => &case.name,
+            TestResult::Failed { case, .. } => &case.name,
+            TestResult::Skipped => "Skipped",
+        }
+    }
+
+    /// Gets the status of the test result as a string for display.
+    /// 以字符串形式获取测试结果的状态以供显示。
+    pub fn get_status_str(&self) -> &str {
+        match self {
+            TestResult::Passed { .. } => "Passed",
+            TestResult::Failed { case, .. } => {
+                if case.allow_failure.iter().any(|s| s == std::env::consts::OS) {
+                    "Allowed Failure"
+                } else {
+                    "Failed"
+                }
+            }
+            TestResult::Skipped => "Skipped",
+        }
+    }
+
+    /// Gets the output of the test case. Returns an empty string if there's no output.
+    /// 获取测试用例的输出。如果没有输出，则返回空字符串。
+    pub fn get_output(&self) -> &str {
+        match self {
+            TestResult::Passed { output, .. } => output,
+            TestResult::Failed { output, .. } => output,
+            TestResult::Skipped => "",
+        }
+    }
 }
 
 /// A context for a single build, managing its isolated temporary directory.

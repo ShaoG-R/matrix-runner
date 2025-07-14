@@ -1,6 +1,7 @@
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 use std::process::Command;
+use std::fs;
 
 /// This test runs the `matrix-runner` against the `sample_project`
 /// using the `success.toml` fixture. It asserts that the command
@@ -12,7 +13,8 @@ use std::process::Command;
 #[test]
 fn test_successful_run() {
     let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
-    cmd.arg("--config")
+    cmd.arg("run")
+        .arg("--config")
         .arg("tests/fixtures/success.toml")
         .arg("--project-dir")
         .arg("tests/sample_project");
@@ -31,7 +33,8 @@ fn test_successful_run() {
 #[test]
 fn test_build_failure() {
     let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
-    cmd.arg("--config")
+    cmd.arg("run")
+        .arg("--config")
         .arg("tests/fixtures/build_fail.toml")
         .arg("--project-dir")
         .arg("tests/sample_project");
@@ -51,7 +54,8 @@ fn test_build_failure() {
 #[test]
 fn test_test_failure() {
     let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
-    cmd.arg("--config")
+    cmd.arg("run")
+        .arg("--config")
         .arg("tests/fixtures/test_fail.toml")
         .arg("--project-dir")
         .arg("tests/sample_project");
@@ -60,4 +64,80 @@ fn test_test_failure() {
         .failure()
         .stdout(predicate::str::contains("UNEXPECTED FAILURE DETECTED"))
         .stdout(predicate::str::contains("(Test Failure)"));
+}
+
+/// This test checks the custom command feature.
+/// It runs a matrix with a command that just echoes a string.
+///
+/// 这个测试检查自定义命令功能。
+/// 它运行一个矩阵，其中的命令只回显一个字符串。
+#[test]
+fn test_custom_command() {
+    let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
+    cmd.arg("run")
+        .arg("--config")
+        .arg("tests/fixtures/custom_command.toml");
+
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Custom command executed successfully!",
+        ));
+}
+
+/// This test checks the HTML report generation feature.
+/// It runs a successful matrix and asserts that an HTML file is created.
+///
+/// 这个测试检查 HTML 报告生成功能。
+/// 它运行一个成功的矩阵，并断言 HTML 文件被创建。
+#[test]
+fn test_html_report_generation() -> Result<(), Box<dyn std::error::Error>> {
+    // Instead of a temp dir, we'll just use a path relative to the test's CWD.
+    // `assert_cmd` runs tests in a temporary directory per-test.
+    let report_path = "report.html";
+
+    let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
+    cmd.arg("run")
+        .arg("--config")
+        .arg("tests/fixtures/success.toml")
+        .arg("--project-dir")
+        .arg("tests/sample_project")
+        .arg("--html")
+        .arg(&report_path);
+
+    // Get output instead of just asserting success, for better debugging.
+    let output = cmd.output()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    // Print stderr for debugging purposes, even on success.
+    if !stderr.is_empty() {
+        eprintln!("matrix-runner stderr:\n---\n{}\n---", stderr);
+    }
+
+    // Assert that the command was successful and that it mentioned generating a report.
+    assert!(
+        output.status.success(),
+        "Command did not run successfully. Stderr: {}",
+        stderr
+    );
+    assert!(
+        stdout.contains("Generating HTML report"),
+        "Stdout does not confirm report generation."
+    );
+
+    assert!(
+        fs::metadata(report_path).is_ok(),
+        "HTML report file was not created"
+    );
+    let report_content = fs::read_to_string(report_path)?;
+    assert!(
+        report_content.contains("<title>Test Report</title>"),
+        "HTML report content is invalid"
+    );
+    
+    // Cleanup the created report file
+    fs::remove_file(report_path)?;
+
+    Ok(())
 } 

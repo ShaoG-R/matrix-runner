@@ -44,6 +44,72 @@ pub async fn run_test_case(
     project_root: &PathBuf,
     crate_name: &str,
 ) -> Result<TestResult> {
+    // If a custom command is provided, we use the custom command flow.
+    // The command is expected to handle both "build" and "test" logic.
+    if let Some(custom_command) = &case.command {
+        println!("{}", i18n::t_fmt(I18nKey::RunningTest, &[&case.name]).blue());
+
+        let start_time = std::time::Instant::now();
+
+        let expanded_command = shellexpand::full(custom_command)
+            .with_context(|| format!("Failed to expand command: {}", custom_command))?
+            .to_string();
+
+        let parts = shlex::split(&expanded_command).ok_or_else(|| {
+            anyhow::anyhow!("Failed to parse command: {}", expanded_command)
+        })?;
+        
+        if parts.is_empty() {
+            return Err(anyhow::anyhow!("Empty command after parsing."));
+        }
+
+        let program = &parts[0];
+        let args = &parts[1..];
+        
+        let mut cmd = tokio::process::Command::new(program);
+        cmd.args(args);
+        cmd.kill_on_drop(true);
+        cmd.current_dir(project_root);
+        
+        let (status_res, output) = spawn_and_capture(cmd).await;
+        let status = status_res.context("Failed to get process status")?;
+        let duration = start_time.elapsed();
+
+        // Always print the output from the custom command
+        if !output.trim().is_empty() {
+            println!("{}", output.trim());
+        }
+
+        if status.success() {
+            println!(
+                "{}",
+                i18n::t_fmt(
+                    I18nKey::TestPassed,
+                    &[&case.name, &format!("{:.2?}", duration)]
+                )
+                .green()
+            );
+            return Ok(TestResult::Passed { case, output });
+        } else {
+            println!(
+                "{}",
+                i18n::t_fmt(
+                    I18nKey::TestFailed,
+                    &[&case.name, &format!("{:.2?}", duration)]
+                )
+                .red()
+            );
+            // For custom commands, we don't have artifacts to preserve in the same way,
+            // so we just return the failure. The output from the command is the primary artifact.
+            return Ok(TestResult::Failed {
+                case,
+                output,
+                reason: FailureReason::Test, // Or a new `CustomCommand` reason
+            });
+        }
+    }
+
+    // --- Default flow (no custom command) ---
     let built_test = match build_test_case(case.clone(), project_root, crate_name).await {
         Ok(built_test) => built_test,
         Err(e) => {
@@ -108,7 +174,7 @@ async fn build_test_case(
         if !case.features.is_empty() { format!("--features \"{}\"", case.features) } else { "".to_string() }
     ).split_whitespace().collect::<Vec<&str>>().join(" ");
 
-    let (status_res, output, _was_cancelled) = spawn_and_capture(cmd).await;
+    let (status_res, output) = spawn_and_capture(cmd).await;
     let status = status_res.context("Failed to get process status")?;
 
     if !status.success() {
@@ -188,7 +254,7 @@ async fn run_built_test(built_test: BuiltTest, project_root: &PathBuf) -> TestRe
     let mut cmd = tokio::process::Command::new(&executable);
     cmd.kill_on_drop(true);
 
-    let (status_res, output, _was_cancelled) = spawn_and_capture(cmd).await;
+    let (status_res, output) = spawn_and_capture(cmd).await;
     let status = status_res.expect("Failed to get process status");
 
     let duration = start_time.elapsed();

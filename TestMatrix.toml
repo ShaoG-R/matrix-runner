@@ -84,3 +84,32 @@ features = "feature-z,avx-support"
 no_default_features = true
 allow_failure = ["windows"]
 arch = ["x86_64"] 
+
+# --- Custom Command Examples ---
+# --- 自定义命令示例 ---
+
+# You can provide a custom `command` to be executed instead of the default
+# `cargo test` flow. This is useful for tools like `wasm-pack` or other build systems.
+# Environment variables will be expanded.
+#
+# 您可以提供一个自定义的 `command` 来代替默认的 `cargo test` 流程。
+# 这对于 `wasm-pack` 等工具或其他构建系统非常有用。
+# 环境变量会被展开。
+[[cases]]
+name = "wasm-pack-test"
+command = "wasm-pack test --node"
+# `features` and `no_default_features` are ignored when `command` is present.
+# 当 `command` 存在时，`features` 和 `no_default_features` 会被忽略。
+features = ""
+no_default_features = false
+
+# Example using an environment variable to pass a flag.
+# If `MY_FLAG` is set to "--release", this will run `cargo test --release`.
+#
+# 使用环境变量传递标志的示例。
+# 如果 `MY_FLAG` 被设置为 "--release"，这将运行 `cargo test --release`。
+[[cases]]
+name = "test-with-env-var"
+command = "cargo test ${MY_FLAG}"
+features = ""
+no_default_features = false 
