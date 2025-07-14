@@ -1,4 +1,5 @@
 use crate::runner::command::format_build_error_output;
+use crate::runner::i18n;
 use crate::runner::models::{FailureReason, TestResult};
 use colored::*;
 
@@ -9,10 +10,10 @@ pub fn print_unexpected_failure_details(result: &TestResult) {
         "{}",
         "=================================================================".cyan()
     );
-    println!("{}", "UNEXPECTED FAILURE DETECTED".red().bold());
+    println!("{}", i18n::t("unexpected_failure_banner").red().bold());
     println!(
         "{}",
-        format!("  Failure details for: {}", result.case.name).cyan()
+        i18n::t_fmt("failure_details_for", &[&result.case.name]).cyan()
     );
     println!(
         "{}",
@@ -31,8 +32,7 @@ pub fn print_unexpected_failure_details(result: &TestResult) {
     );
     println!(
         "{}",
-        "Signaling all other running tests to stop. A final summary will be printed at the end."
-            .yellow()
+        i18n::t("stopping_other_tests").yellow()
     );
 }
 
@@ -50,13 +50,11 @@ pub fn print_summary(results: &[TestResult]) -> bool {
         if result.success {
             successes.push(result);
         } else {
-            // Distinguish between genuine failures and cancellations
             if result.failure_reason == Some(FailureReason::Cancelled) {
                 cancelled_tests.push(result);
                 continue;
             }
 
-            // Check if the failure was allowed for the current OS
             let failure_allowed = result.case.allow_failure.iter().any(|os| os == current_os);
 
             if failure_allowed {
@@ -69,56 +67,67 @@ pub fn print_summary(results: &[TestResult]) -> bool {
 
     println!(
         "\n{}",
-        "==================== FINAL SUMMARY ====================".cyan()
+        i18n::t("final_summary_banner").cyan()
     );
 
     if !successes.is_empty() {
-        println!("\n{}", "--- Successful Tests ---".green());
+        println!("\n{}", i18n::t("summary_successful_tests").green());
         for result in successes {
             println!("  - {}", result.case.name.green());
         }
     }
 
     if !allowed_failures.is_empty() {
-        println!("\n{}", "--- Allowed Failures ---".yellow());
+        println!("\n{}", i18n::t("summary_allowed_failures").yellow());
         for result in allowed_failures {
             println!(
-                "  - {} (failed as expected on {})",
-                result.case.name.yellow(),
-                current_os
+                "  - {}",
+                i18n::t_fmt(
+                    "summary_failed_as_expected",
+                    &[&result.case.name.yellow(), &current_os]
+                )
             );
         }
     }
 
     if !cancelled_tests.is_empty() {
-        println!("\n{}", "--- Cancelled Tests ---".yellow());
+        println!("\n{}", i18n::t("summary_cancelled_tests").yellow());
         for result in &cancelled_tests {
-            println!("  - {} (Cancelled)", result.case.name.yellow());
+            println!(
+                "  - {}",
+                i18n::t_fmt("summary_cancelled_test_case", &[&result.case.name.yellow()])
+            );
         }
     }
 
     if !unexpected_failures.is_empty() {
-        println!("\n{}", "--- Unexpected Failures ---".red().bold());
+        println!("\n{}", i18n::t("summary_unexpected_failures").red().bold());
         for result in &unexpected_failures {
             let failure_type = match result.failure_reason {
-                Some(FailureReason::Build) => "Build",
-                Some(FailureReason::Test) => "Test",
-                _ => "Unknown", // Should not happen with current logic
+                Some(FailureReason::Build) => i18n::t("build_failure"),
+                Some(FailureReason::Test) => i18n::t("test_failure"),
+                _ => i18n::t("unhandled_error"),
             };
-            println!("  - {} ({} Failure)", result.case.name.red(), failure_type);
+            println!(
+                "  - {}",
+                i18n::t_fmt(
+                    "summary_unexpected_failure_case",
+                    &[&result.case.name.red(), &failure_type]
+                )
+            );
         }
     }
 
     println!(); // Add a blank line for spacing
 
     if !unexpected_failures.is_empty() {
-        println!("{}", "TEST MATRIX FAILED".red().bold());
+        println!("{}", i18n::t("overall_failure").red().bold());
         true
     } else if !cancelled_tests.is_empty() {
-        println!("{}", "TEST MATRIX EXECUTION CANCELLED".yellow().bold());
+        println!("{}", i18n::t("overall_cancelled").yellow().bold());
         true
     } else {
-        println!("{}", "TEST MATRIX PASSED SUCCESSFULLY".green().bold());
+        println!("{}", i18n::t("overall_success").green().bold());
         false
     }
 }

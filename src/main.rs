@@ -10,6 +10,7 @@ use tokio_util::sync::CancellationToken;
 mod runner;
 use runner::config::TestMatrix;
 use runner::execution::run_test_case;
+use runner::i18n;
 use runner::reporting::{print_summary, print_unexpected_failure_details};
 
 #[derive(Parser, Debug)]
@@ -53,41 +54,15 @@ async fn main() {
     let num_cpus = num_cpus::get();
     let jobs = args.jobs.unwrap_or(num_cpus / 2 + 1);
 
-    // Setup a global cancellation token for graceful shutdown
-    let overall_stop_token = CancellationToken::new();
-    let signal_token = overall_stop_token.clone();
-    tokio::spawn(async move {
-        signal::ctrl_c()
-            .await
-            .expect("Failed to listen for Ctrl+C signal");
-        println!(
-            "\n{}",
-            "Ctrl+C received, initiating graceful shutdown...".yellow()
-        );
-        signal_token.cancel();
-    });
-
-    println!(
-        "{}",
-        "Temporary directories will be auto-cleaned for successful tests.".green()
-    );
-    println!(
-        "{}",
-        "Artifacts for failed tests will be preserved in './target-errors'.".yellow()
-    );
-
     // Determine the project root from the command-line argument
     let project_root = fs::canonicalize(&args.project_dir).unwrap_or_else(|_| {
-        panic!(
-            "Failed to find project directory at: {}",
-            args.project_dir.display()
-        )
+        panic!("{}", i18n::t_fmt("project_dir_not_found", &[&args.project_dir.display()]))
     });
 
     // --- Pre-fetch all dependencies ---
     println!(
         "\n{}",
-        "Fetching all dependencies to avoid lock contention...".cyan()
+        i18n::t("dep_fetch_start").cyan()
     );
     let mut fetch_cmd = std::process::Command::new("cargo");
     fetch_cmd.current_dir(&project_root);
@@ -98,38 +73,63 @@ async fn main() {
         .expect("Failed to execute cargo fetch command");
 
     if !fetch_status.success() {
-        panic!("'cargo fetch' failed. Please check your network and Cargo.toml file.");
+        panic!("{}", i18n::t("cargo_fetch_failed"));
     }
-    println!("{}", "Dependency fetching successful.".green());
+    println!("{}", i18n::t("dep_fetch_success").green());
 
     // --- Read crate name from Cargo.toml ---
     let manifest_path = project_root.join("Cargo.toml");
     let manifest_content = fs::read_to_string(&manifest_path).unwrap_or_else(|_| {
-        panic!(
-            "Failed to read Cargo.toml at: {}",
-            manifest_path.display()
-        )
+        panic!("{}", i18n::t_fmt("manifest_read_failed", &[&manifest_path.display()]))
     });
     let manifest: Manifest =
-        toml::from_str(&manifest_content).expect("Failed to parse Cargo.toml");
+        toml::from_str(&manifest_content).expect(i18n::t("manifest_parse_failed").as_str());
     // Cargo converts hyphens in crate names to underscores for symbol names.
     let crate_name = manifest.package.name.replace('-', "_");
 
     // The config file path is relative to the project root
     let config_path = project_root.join(&args.config);
 
-    println!("Project root detected at: {}", project_root.display());
-    println!("Testing crate: {}", crate_name.yellow());
-    println!("Loading test matrix from: {}", config_path.display());
     let config_content = fs::read_to_string(&config_path)
-        .unwrap_or_else(|_| panic!("Failed to read config file: {}", config_path.display()));
+        .unwrap_or_else(|_| panic!("{}", i18n::t_fmt("config_read_failed", &[&config_path.display()])));
 
     let test_matrix: TestMatrix =
-        toml::from_str(&config_content).expect("Failed to parse TOML config file");
+        toml::from_str(&config_content).expect(i18n::t("config_parse_failed").as_str());
 
+    // Initialize the i18n system
+    i18n::init(&test_matrix.language);
+
+    println!("{}", i18n::t_fmt("project_root_detected", &[&project_root.display()]));
+    println!("{}", i18n::t_fmt("testing_crate", &[&crate_name.yellow()]));
+    println!("{}", i18n::t_fmt("loading_test_matrix", &[&config_path.display()]));
+
+    // Setup a global cancellation token for graceful shutdown
+    let overall_stop_token = CancellationToken::new();
+    let signal_token = overall_stop_token.clone();
+    tokio::spawn(async move {
+        signal::ctrl_c()
+            .await
+            .expect("Failed to listen for Ctrl+C signal");
+        println!(
+            "\n{}",
+            i18n::t("shutdown_signal").yellow()
+        );
+        signal_token.cancel();
+    });
+
+    println!(
+        "{}",
+        i18n::t("temp_dir_cleanup_info").green()
+    );
+    println!(
+        "{}",
+        i18n::t("failure_artifact_info").yellow()
+    );
+
+    // Move i18n initialization to after parsing test_matrix
     let total_cases_count = test_matrix.cases.len();
     let current_arch = std::env::consts::ARCH;
-    println!("Current architecture detected: {}", current_arch.yellow());
+    println!("{}", i18n::t_fmt("current_arch", &[&current_arch.yellow()]));
 
     let all_cases: Vec<_> = test_matrix
         .cases
@@ -141,19 +141,14 @@ async fn main() {
     if filtered_count > 0 {
         println!(
             "{}",
-            format!(
-                "Filtered out {} test case(s) based on current architecture. {} case(s) remaining.",
-                filtered_count,
-                all_cases.len()
-            )
-            .yellow()
+            i18n::t_fmt("filtered_arch_cases", &[&filtered_count, &all_cases.len()]).yellow()
         );
     }
 
     let cases_to_run = match (args.total_runners, args.runner_index) {
         (Some(total), Some(index)) => {
             if index >= total {
-                panic!("--runner-index must be less than --total-runners.");
+                panic!("{}", i18n::t("runner_index_invalid"));
             }
             let cases_for_this_runner = all_cases
                 .into_iter()
@@ -163,35 +158,29 @@ async fn main() {
 
             println!(
                 "{}",
-                format!(
-                    "Running as runner {}/{} ({} cases assigned)",
-                    index + 1,
-                    total,
-                    cases_for_this_runner.len()
-                )
-                .yellow()
+                i18n::t_fmt("running_as_split_runner", &[&(index + 1), &total, &cases_for_this_runner.len()]).yellow()
             );
             cases_for_this_runner
         }
         (None, None) => {
-            println!("{}", "Running all test cases as a single runner.".yellow());
+            println!("{}", i18n::t("running_as_single_runner").yellow());
             all_cases
         }
         _ => {
-            panic!("--total-runners and --runner-index must be provided together.");
+            panic!("{}", i18n::t("runner_flags_inconsistent"));
         }
     };
 
     if cases_to_run.is_empty() {
         println!(
             "{}",
-            "No test cases to run for this runner, exiting successfully.".green()
+            i18n::t("no_cases_to_run").green()
         );
         std::process::exit(0);
     }
 
     let current_os = std::env::consts::OS;
-    println!("Current OS detected: {}", current_os.yellow());
+    println!("{}", i18n::t_fmt("current_os", &[&current_os.yellow()]));
 
     let (flaky_cases, safe_cases): (Vec<_>, Vec<_>) = cases_to_run
         .into_iter()
@@ -202,12 +191,7 @@ async fn main() {
     // --- Run safe cases in parallel ---
     println!(
         "\n{}",
-        format!(
-            "Running {} safe configurations with up to {} parallel jobs...",
-            safe_cases.len(),
-            jobs
-        )
-        .cyan()
+        i18n::t_fmt("running_safe_cases", &[&safe_cases.len(), &jobs]).cyan()
     );
 
     let mut safe_tests_stream = stream::iter(safe_cases)
@@ -247,77 +231,45 @@ async fn main() {
     if !flaky_cases.is_empty() {
         println!(
             "\n{}",
-            format!(
-                "Running {} platform-specific (may fail) configurations sequentially...",
-                flaky_cases.len()
-            )
-            .yellow()
+            i18n::t_fmt("running_flaky_cases", &[&flaky_cases.len()]).cyan()
         );
         for case in flaky_cases {
             if overall_stop_token.is_cancelled() {
-                println!(
-                    "{}",
-                    format!("Shutdown triggered, skipping test: {}", case.name).yellow()
-                );
                 results.push(runner::models::TestResult {
                     case,
-                    output: "Test skipped due to cancellation.".to_string(),
+                    output: i18n::t("test_skipped_due_to_cancellation"),
                     success: false,
                     failure_reason: Some(runner::models::FailureReason::Cancelled),
                 });
-            } else {
-                let result = run_test_case(
-                    case,
-                    project_root.clone(),
-                    crate_name.clone(),
-                    Some(overall_stop_token.clone()),
-                )
-                .await;
-                match result {
-                    Ok(res) => {
-                        results.push(res);
-                    }
-                    Err(res) => {
-                        // Only treat genuine failures as "unexpected"
-                        if res.failure_reason != Some(runner::models::FailureReason::Cancelled) {
-                            let failure_allowed =
-                                res.case.allow_failure.iter().any(|os| os == current_os);
-                            if !failure_allowed {
-                                if !unexpected_failure_observed {
-                                    unexpected_failure_observed = true;
-                                    overall_stop_token.cancel();
-                                    print_unexpected_failure_details(&res);
-                                }
-                            }
-                        }
-                        results.push(res);
-                    }
+                continue;
+            }
+            // Flaky tests run sequentially, so we don't pass the overall stop token.
+            // Their failure is allowed and should not stop other tests.
+            let result = run_test_case(case, project_root.clone(), crate_name.clone(), None).await;
+            match result {
+                Ok(res) | Err(res) => {
+                    results.push(res);
                 }
             }
         }
     }
 
-    let has_unexpected_failures = print_summary(&results);
+    println!("\n{}", i18n::t("all_tests_completed").cyan());
+    let unexpected_failures_exist = print_summary(&results);
 
     // Final status message about directories.
     println!(
-        "{}",
-        "\nTemporary build directories for successful tests have been cleaned up automatically."
-            .green()
+        "\n{}",
+        i18n::t("temp_dir_cleanup_end_success").green()
     );
     if results.iter().any(|r| !r.success) {
         println!(
             "{}",
-            "Build artifacts for any failed tests have been preserved in './target-errors'."
-                .yellow()
+            i18n::t("failure_artifact_info").yellow()
         );
     }
 
-    if has_unexpected_failures {
-        println!("{}", "TEST MATRIX FAILED".red());
+    if unexpected_failures_exist {
         std::process::exit(1);
-    } else {
-        println!("{}", "TEST MATRIX PASSED SUCCESSFULLY".green());
-        std::process::exit(0);
     }
 }

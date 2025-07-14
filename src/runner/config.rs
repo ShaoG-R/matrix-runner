@@ -13,5 +13,7 @@ pub struct TestCase {
 
 #[derive(Debug, Deserialize)]
 pub struct TestMatrix {
+    #[serde(default)]
+    pub language: String,
     pub cases: Vec<TestCase>,
 }
