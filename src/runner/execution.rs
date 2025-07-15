@@ -1,3 +1,26 @@
+//! # Test Execution Module / 测试执行模块
+//!
+//! This module provides the core functionality for executing test cases in isolated
+//! environments. It handles the complete test lifecycle from building to execution,
+//! including dependency management, environment isolation, and result collection.
+//!
+//! 此模块提供在隔离环境中执行测试用例的核心功能。
+//! 它处理从构建到执行的完整测试生命周期，包括依赖管理、环境隔离和结果收集。
+//!
+//! ## Features / 功能特性
+//!
+//! - **Isolated Builds**: Each test case is built in a separate temporary directory
+//! - **Dependency Management**: Automatic copying of source code and dependencies
+//! - **Timeout Handling**: Configurable timeouts for both build and test phases
+//! - **Error Capture**: Comprehensive error output capture and formatting
+//! - **Parallel Execution**: Support for concurrent test execution
+//!
+//! - **隔离构建**: 每个测试用例在单独的临时目录中构建
+//! - **依赖管理**: 自动复制源代码和依赖项
+//! - **超时处理**: 构建和测试阶段的可配置超时
+//! - **错误捕获**: 全面的错误输出捕获和格式化
+//! - **并行执行**: 支持并发测试执行
+
 use anyhow::{Context, Result};
 use colored::*;
 use std::fs;
@@ -261,20 +284,39 @@ async fn run_test_case_inner(
     Ok(run_built_test(built_test, project_root).await?)
 }
 
-/// Builds a single test case using `cargo test --no-run`.
-/// It creates a temporary, isolated directory for the build artifacts to prevent
-/// interference between parallel test runs.
+/// Builds a single test case using `cargo test --no-run` in an isolated environment.
+/// Creates a temporary, isolated directory for build artifacts to prevent interference
+/// between parallel test runs. Copies the entire project source to the temporary
+/// directory and builds the test executable with the specified feature configuration.
 ///
-/// # Returns
-/// On success, returns a `BuiltTest` struct containing the path to the executable
-/// and the build context. On failure, returns a `TestResult` with `FailureReason::Build`.
+/// 在隔离环境中使用 `cargo test --no-run` 构建单个测试用例。
+/// 为构建产物创建临时的隔离目录，以防止并行测试运行之间的干扰。
+/// 将整个项目源代码复制到临时目录，并使用指定的 feature 配置构建测试可执行文件。
 ///
-/// 使用 `cargo test --no-run` 构建单个测试用例。
-/// 它为构建产物创建一个临时的、隔离的目录，以防止并行测试运行之间发生干扰。
+/// # Arguments / 参数
+/// * `case` - The test case configuration containing features and build settings
+///            包含 features 和构建设置的测试用例配置
+/// * `project_root` - The absolute path to the root of the project being tested
+///                    被测试项目根目录的绝对路径
+/// * `crate_name` - The name of the crate being tested, used to identify the executable
+///                  被测试的 crate 名称，用于识别可执行文件
 ///
-/// # Returns
-/// 成功时，返回一个 `BuiltTest` 结构体，其中包含可执行文件的路径和构建上下文。
-/// 失败时，返回一个带有 `FailureReason::Build` 的 `TestResult`。
+/// # Returns / 返回值
+/// * `Result<BuiltTest>` - On success, contains the executable path and build context
+///                         成功时包含可执行文件路径和构建上下文
+///
+/// # Errors / 错误
+/// This function will return an error if:
+/// - The temporary build directory cannot be created
+/// - Source code copying fails
+/// - The cargo build command fails
+/// - The built executable cannot be found
+///
+/// 此函数在以下情况下会返回错误：
+/// - 无法创建临时构建目录
+/// - 源代码复制失败
+/// - cargo 构建命令失败
+/// - 找不到构建的可执行文件
 async fn build_test_case(
     case: TestCase,
     project_root: &PathBuf,

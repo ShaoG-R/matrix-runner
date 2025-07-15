@@ -1,3 +1,26 @@
+//! # Data Models Module / 数据模型模块
+//!
+//! This module defines the core data structures used throughout the matrix runner.
+//! It includes models for test results, build contexts, failure reasons, and
+//! cargo-specific message formats.
+//!
+//! 此模块定义了整个矩阵运行器中使用的核心数据结构。
+//! 它包括测试结果、构建上下文、失败原因和 cargo 特定消息格式的模型。
+//!
+//! ## Key Types / 关键类型
+//!
+//! - `TestResult` - Represents the outcome of a test case execution
+//! - `FailureReason` - Categorizes different types of test failures
+//! - `BuildContext` - Manages temporary build directories and their lifecycle
+//! - `BuiltTest` - Contains information about a successfully built test
+//! - `CargoMessage` - Parses JSON output from cargo commands
+//!
+//! - `TestResult` - 表示测试用例执行的结果
+//! - `FailureReason` - 分类不同类型的测试失败
+//! - `BuildContext` - 管理临时构建目录及其生命周期
+//! - `BuiltTest` - 包含成功构建测试的信息
+//! - `CargoMessage` - 解析 cargo 命令的 JSON 输出
+
 use crate::runner::config::TestCase;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -25,25 +48,42 @@ pub enum FailureReason {
 }
 
 /// Represents the final result of a single test case execution.
+/// This enum captures all possible outcomes of running a test case,
+/// including success, various types of failures, and skipped tests.
+///
+/// 表示单个测试用例执行的最终结果。
+/// 此枚举捕获运行测试用例的所有可能结果，
+/// 包括成功、各种类型的失败和跳过的测试。
 #[derive(Debug, Clone)]
 pub enum TestResult {
     /// The test case passed successfully.
+    /// 测试用例成功通过。
     Passed {
+        /// The test case configuration that was executed / 执行的测试用例配置
         case: TestCase,
+        /// The complete output from the test execution / 测试执行的完整输出
         #[allow(dead_code)]
         output: String,
+        /// The time taken to execute the test / 执行测试所花费的时间
         duration: Duration,
         /// The number of attempts it took to pass the test (1 means it passed on the first try).
+        /// 通过测试所需的尝试次数（1 表示第一次尝试就通过）。
         retries: u8,
     },
-    /// The test case failed.
+    /// The test case failed for various reasons.
+    /// 测试用例因各种原因失败。
     Failed {
+        /// The test case configuration that failed / 失败的测试用例配置
         case: TestCase,
+        /// The complete output from the failed execution / 失败执行的完整输出
         output: String,
+        /// The specific reason for the failure / 失败的具体原因
         reason: FailureReason,
+        /// The time taken before the failure occurred / 失败发生前所花费的时间
         duration: Duration,
     },
-    /// The test case was skipped.
+    /// The test case was skipped due to platform or architecture constraints.
+    /// 由于平台或架构约束，测试用例被跳过。
     Skipped,
 }
 
@@ -156,10 +196,11 @@ pub struct BuildContext {
 }
 
 /// Represents a successfully built test case, ready to be executed.
-/// It holds the necessary information to run the test, including the path
-/// to the compiled executable and the build context (for cleanup).
-/// 代表一个成功构建的、准备好执行的测试用例。
-/// 它持有运行测试所需的信息，包括已编译可执行文件的路径和构建上下文（用于清理）。
+/// Contains all necessary information to run the test, including the path
+/// to the compiled executable and the build context for proper cleanup.
+///
+/// 表示成功构建的测试用例，准备执行。
+/// 包含运行测试所需的所有信息，包括编译可执行文件的路径和用于正确清理的构建上下文。
 pub struct BuiltTest {
     /// The `TestCase` configuration that was built.
     /// 已构建的 `TestCase` 配置。

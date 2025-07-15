@@ -1,3 +1,30 @@
+//! # Matrix Runner - Configuration-Driven Test Executor
+//! # Matrix Runner - 配置驱动的测试执行器
+//!
+//! A powerful, configuration-driven test executor for Rust projects that enables
+//! testing across a wide matrix of feature flags and environments. This tool helps
+//! ensure comprehensive test coverage by automatically running tests with different
+//! feature combinations in isolated environments.
+//!
+//! 一个强大的、配置驱动的 Rust 项目测试执行器，支持在广泛的 feature 标志和环境矩阵中进行测试。
+//! 此工具通过在隔离环境中自动运行不同 feature 组合的测试来帮助确保全面的测试覆盖。
+//!
+//! ## Key Features / 主要功能
+//!
+//! - **Matrix Testing**: Run tests across multiple feature flag combinations
+//! - **Parallel Execution**: Concurrent test execution with configurable job limits
+//! - **Isolated Builds**: Each test runs in its own temporary directory
+//! - **HTML Reports**: Generate detailed HTML reports with test results
+//! - **Internationalization**: Support for multiple languages (English, Chinese)
+//! - **Graceful Shutdown**: Handle interruption signals properly
+//!
+//! - **矩阵测试**: 在多个 feature 标志组合中运行测试
+//! - **并行执行**: 具有可配置作业限制的并发测试执行
+//! - **隔离构建**: 每个测试在自己的临时目录中运行
+//! - **HTML 报告**: 生成包含测试结果的详细 HTML 报告
+//! - **国际化**: 支持多种语言（英语、中文）
+//! - **优雅关闭**: 正确处理中断信号
+
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use colored::*;
@@ -16,18 +43,31 @@ use runner::i18n;
 use runner::init;
 use runner::reporting::{print_summary, print_unexpected_failure_details};
 
+/// Command-line interface definition for the Matrix Runner application.
+/// Defines the main CLI structure and available subcommands.
+///
+/// Matrix Runner 应用程序的命令行界面定义。
+/// 定义主要的 CLI 结构和可用的子命令。
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
+    /// The subcommand to execute / 要执行的子命令
     #[command(subcommand)]
     command: Commands,
 }
 
+/// Available subcommands for the Matrix Runner CLI.
+/// Defines the main operations that can be performed with the tool.
+///
+/// Matrix Runner CLI 的可用子命令。
+/// 定义可以使用该工具执行的主要操作。
 #[derive(Subcommand, Debug)]
 enum Commands {
     /// Run tests based on the matrix configuration (default command).
+    /// 基于矩阵配置运行测试（默认命令）。
     Run(RunArgs),
     /// Launch an interactive wizard to create a new TestMatrix.toml file.
+    /// 启动交互式向导创建新的 TestMatrix.toml 文件。
     Init(InitArgs),
 }
 
@@ -86,8 +126,15 @@ struct Manifest {
     package: Package,
 }
 
+/// Application entry point with async runtime.
+/// Initializes the Tokio runtime and handles top-level error reporting.
+///
+/// 具有异步运行时的应用程序入口点。
+/// 初始化 Tokio 运行时并处理顶级错误报告。
 #[tokio::main]
 async fn main() {
+    // Run the main application logic and handle any errors
+    // 运行主应用程序逻辑并处理任何错误
     if let Err(e) = run_main().await {
         eprintln!("{} {}", "Error:".red(), e);
         std::process::exit(1);
