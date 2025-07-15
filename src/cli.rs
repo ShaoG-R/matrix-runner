@@ -1,131 +1,104 @@
-// src/cli.rs
-use anyhow::Result;
-use clap::{Arg, ArgAction, Command};
-use std::{env, path::PathBuf};
+//! # CLI Module / CLI 模块
+//!
+//! This module defines the command-line interface for Matrix Runner.
+//! It processes command line arguments and dispatches to the appropriate commands.
+//!
+//! 此模块定义了 Matrix Runner 的命令行界面。
+//! 它处理命令行参数并分派到适当的命令。
 
-use crate::{commands, t};
+pub mod commands;
 
-/// Pre-parses the command line arguments to find the language setting.
-/// This allows i18n to be initialized before the full CLI is built.
-/// It looks for a `--lang <VALUE>` argument.
-fn pre_parse_language() -> String {
-    let args: Vec<String> = env::args().collect();
-    if let Some(pos) = args.iter().position(|arg| arg == "--lang") {
-        if let Some(lang) = args.get(pos + 1) {
-            return lang.clone();
-        }
-    }
-    // Fallback to system language detection
-    sys_locale::get_locale().unwrap_or_else(|| "en".to_string())
+use clap::{Parser, Subcommand};
+use std::path::PathBuf;
+
+/// A powerful, configuration-driven test executor for Rust projects.
+/// 一个强大的、配置驱动的 Rust 项目测试执行器。
+#[derive(Parser)]
+#[clap(version, about, long_about = None)]
+pub struct Cli {
+    /// The subcommand to run.
+    /// 要运行的子命令。
+    #[clap(subcommand)]
+    pub command: Commands,
 }
 
-fn build_cli(locale: &str) -> Command {
-    Command::new("matrix-runner")
-        .author(env!("CARGO_PKG_AUTHORS"))
-        .version(env!("CARGO_PKG_VERSION"))
-        .about(t!("cli_about", locale = locale).to_string())
-        .arg(
-            Arg::new("lang")
-                .long("lang")
-                .help(t!("cli_lang", locale = locale).to_string())
-                .value_name("LANGUAGE")
-                .global(true)
-                .action(ArgAction::Set),
-        )
-        .subcommand(
-            Command::new("run")
-                .about(t!("cmd_run_about", locale = locale).to_string())
-                .arg(
-                    Arg::new("jobs")
-                        .short('j')
-                        .long("jobs")
-                        .help(t!("arg_jobs", locale = locale).to_string())
-                        .value_name("JOBS")
-                        .value_parser(clap::value_parser!(usize))
-                        .action(ArgAction::Set),
-                )
-                .arg(
-                    Arg::new("config")
-                        .short('c')
-                        .long("config")
-                        .help(t!("arg_config", locale = locale).to_string())
-                        .value_name("CONFIG")
-                        .default_value("TestMatrix.toml")
-                        .value_parser(clap::value_parser!(PathBuf))
-                        .action(ArgAction::Set),
-                )
-                .arg(
-                    Arg::new("project-dir")
-                        .long("project-dir")
-                        .help(t!("arg_project_dir", locale = locale).to_string())
-                        .value_name("PROJECT_DIR")
-                        .default_value(".")
-                        .value_parser(clap::value_parser!(PathBuf))
-                        .action(ArgAction::Set),
-                )
-                .arg(
-                    Arg::new("total-runners")
-                        .long("total-runners")
-                        .help(t!("arg_total_runners", locale = locale).to_string())
-                        .value_name("TOTAL_RUNNERS")
-                        .value_parser(clap::value_parser!(usize))
-                        .action(ArgAction::Set)
-                        .requires("runner-index"),
-                )
-                .arg(
-                    Arg::new("runner-index")
-                        .long("runner-index")
-                        .help(t!("arg_runner_index", locale = locale).to_string())
-                        .value_name("RUNNER_INDEX")
-                        .value_parser(clap::value_parser!(usize))
-                        .action(ArgAction::Set)
-                        .requires("total-runners"),
-                )
-                .arg(
-                    Arg::new("html")
-                        .long("html")
-                        .help(t!("arg_html", locale = locale).to_string())
-                        .value_name("HTML")
-                        .value_parser(clap::value_parser!(PathBuf))
-                        .action(ArgAction::Set),
-                ),
-        )
-        .subcommand(
-            Command::new("init")
-                .about(t!("cmd_init_about", locale = locale).to_string())
-                .arg(
-                    Arg::new("non-interactive")
-                        .long("non-interactive")
-                        .help("Create a default config file without launching the interactive wizard.")
-                        .action(ArgAction::SetTrue),
-                ),
-        )
+/// The available commands.
+/// 可用的命令。
+#[derive(Subcommand)]
+pub enum Commands {
+    /// Run tests according to the test matrix configuration.
+    /// 根据测试矩阵配置运行测试。
+    Run {
+        /// Number of parallel jobs to run. Defaults to half of the CPU cores + 1.
+        /// 要运行的并行任务数量。默认为 CPU 核心数的一半 + 1。
+        #[clap(short, long)]
+        jobs: Option<usize>,
+
+        /// Path to the test matrix configuration file.
+        /// 测试矩阵配置文件的路径。
+        #[clap(short, long, default_value = "TestMatrix.toml")]
+        config: PathBuf,
+
+        /// Path to the project directory.
+        /// 项目目录的路径。
+        #[clap(short, long, default_value = ".")]
+        project_dir: PathBuf,
+
+        /// Total number of distributed runners (for CI).
+        /// 分布式运行器的总数（用于 CI）。
+        #[clap(long)]
+        total_runners: Option<usize>,
+
+        /// Index of this runner (0-based, for CI).
+        /// 此运行器的索引（从 0 开始，用于 CI）。
+        #[clap(long)]
+        runner_index: Option<usize>,
+
+        /// Path for HTML report output.
+        /// HTML 报告输出的路径。
+        #[clap(long)]
+        html: Option<PathBuf>,
+    },
+
+    /// Initialize a new test matrix configuration.
+    /// 初始化一个新的测试矩阵配置。
+    Init {
+        /// Path for the new configuration file.
+        /// 新配置文件的路径。
+        #[clap(short, long, default_value = "TestMatrix.toml")]
+        output: PathBuf,
+
+        /// Force overwrite if the file exists.
+        /// 如果文件存在，则强制覆盖。
+        #[clap(short, long)]
+        force: bool,
+
+        /// Specify the language for error messages.
+        /// 指定错误消息的语言。
+        #[clap(long, default_value = "en")]
+        lang: String,
+    },
 }
 
-pub async fn run() -> Result<()> {
-    // Pre-parse language and initialize i18n first.
-    let language = pre_parse_language();
-    rust_i18n::set_locale(&language);
+/// Parses the command line arguments and returns the CLI structure.
+/// 解析命令行参数并返回 CLI 结构。
+pub fn parse_args() -> Cli {
+    Cli::parse()
+}
 
-    let matches = build_cli(&language).get_matches();
-
-    match matches.subcommand() {
-        Some(("run", run_matches)) => {
-            let jobs = run_matches.get_one::<usize>("jobs").copied();
-            let config = run_matches
-                .get_one::<PathBuf>("config")
-                .unwrap() // Has default
-                .clone();
-            let project_dir = run_matches
-                .get_one::<PathBuf>("project-dir")
-                .unwrap() // Has default
-                .clone();
-            let total_runners = run_matches.get_one::<usize>("total-runners").copied();
-            let runner_index = run_matches.get_one::<usize>("runner-index").copied();
-            let html = run_matches.get_one::<PathBuf>("html").cloned();
-
-            // This will be moved to commands::run::execute
-            commands::run::execute(
+/// Process the parsed CLI command and dispatch to the appropriate handler.
+/// 处理解析后的 CLI 命令并分派到适当的处理程序。
+pub async fn process_command(cli: Cli) -> anyhow::Result<()> {
+    match cli.command {
+        Commands::Run {
+            jobs,
+            config,
+            project_dir,
+            total_runners,
+            runner_index,
+            html,
+        } => {
+            crate::cli::commands::run::execute(
                 jobs,
                 config,
                 project_dir,
@@ -133,24 +106,12 @@ pub async fn run() -> Result<()> {
                 runner_index,
                 html,
             )
-            .await?;
+            .await
         }
-        Some(("init", init_matches)) => {
-            let non_interactive = init_matches.get_flag("non-interactive");
-
-            // Show language detection message if it was auto-detected
-            if env::args().all(|arg| arg != "--lang") {
-                println!(
-                    "🌐 {}",
-                    t!("system_language_detected", locale = &language, lang = &language)
-                );
-            }
-            commands::init::run_init_wizard(&language, non_interactive)?;
-        }
-        _ => {
-            // This case handles when no subcommand is given.
-            // Clap will have already printed help info.
-        }
+        Commands::Init {
+            output,
+            force,
+            lang,
+        } => crate::cli::commands::init::execute(output, force, lang).await,
     }
-    Ok(())
 } 

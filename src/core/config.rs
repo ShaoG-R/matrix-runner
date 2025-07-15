@@ -1,4 +1,14 @@
+//! # Configuration Module / 配置模块
+//!
+//! This module defines the structures and functions for parsing and handling
+//! test matrix configuration files.
+//!
+//! 此模块定义了用于解析和处理测试矩阵配置文件的结构和函数。
+
 use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::Path;
+use anyhow::{Context, Result};
 
 /// Represents a single test case defined in the test matrix configuration.
 /// Each `TestCase` corresponds to a specific build and test configuration.
@@ -83,6 +93,18 @@ pub struct TestMatrix {
     pub cases: Vec<TestCase>,
 }
 
+/// Loads a test matrix configuration from a file path.
+/// 从文件路径加载测试矩阵配置。
+pub fn load_test_matrix<P: AsRef<Path>>(path: P) -> Result<TestMatrix> {
+    let content = fs::read_to_string(&path)
+        .with_context(|| format!("Failed to read config file: {}", path.as_ref().display()))?;
+    
+    let test_matrix = toml::from_str(&content)
+        .with_context(|| "Failed to parse TOML configuration")?;
+    
+    Ok(test_matrix)
+}
+
 fn default_language() -> String {
     "en".to_string()
-}
+} 

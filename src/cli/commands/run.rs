@@ -1,4 +1,10 @@
-// src/commands/run.rs
+//! # Run Command Module / 运行命令模块
+//!
+//! This module implements the `run` command for the Matrix Runner CLI,
+//! which executes test cases according to the test matrix configuration.
+//!
+//! 此模块实现了 Matrix Runner CLI 的 `run` 命令，
+//! 根据测试矩阵配置执行测试用例。
 
 use anyhow::{Context, Result};
 use colored::*;
@@ -8,16 +14,31 @@ use tokio::signal;
 use tokio_util::sync::CancellationToken;
 
 use crate::{
-    t,
-    runner::{
-        config::TestMatrix,
+    infra::t,
+    core::{
+        config::{self, TestMatrix},
         execution::run_test_case,
         models::{self, FailureReason, Manifest},
         planner,
-        reporting::{print_summary, print_unexpected_failure_details},
+    },
+    reporting::{
+        console::{print_summary, print_unexpected_failure_details},
+        html::generate_html_report,
     }
 };
 
+/// Executes the run command with the provided arguments.
+///
+/// # Arguments
+/// * `jobs` - Number of parallel jobs to run
+/// * `config` - Path to the test matrix configuration file
+/// * `project_dir` - Path to the project directory
+/// * `total_runners` - Total number of distributed runners (for CI)
+/// * `runner_index` - Index of this runner (for CI)
+/// * `html` - Optional path for HTML report output
+///
+/// # Returns
+/// A Result indicating success or failure of the command execution
 pub async fn execute(
     jobs: Option<usize>,
     config: PathBuf,
@@ -109,8 +130,7 @@ pub async fn execute(
 
     if let Some(report_path) = &html {
         println!("\nGenerating HTML report at: {}", report_path.display());
-        if let Err(e) = crate::runner::reporting::generate_html_report(&final_results, report_path)
-        {
+        if let Err(e) = generate_html_report(&final_results, report_path) {
             eprintln!("{} {}", "Failed to generate HTML report:".red(), e);
         }
     }
@@ -128,21 +148,20 @@ pub async fn execute(
     }
 }
 
+/// Sets up and parses the test matrix configuration file.
 fn setup_and_parse_config(config_path_arg: &PathBuf) -> Result<(TestMatrix, PathBuf)> {
     // For config parsing, we don't have the locale yet. Use English as a default.
     let locale = "en";
     let config_path = fs::canonicalize(config_path_arg)
         .with_context(|| t!("config_read_failed_path", locale = locale, path = config_path_arg.display()))?;
 
-    let config_content = fs::read_to_string(&config_path)
-        .with_context(|| t!("config_read_failed_path", locale = locale, path = config_path.display()))?;
+    let config_matrix = config::load_test_matrix(&config_path)
+        .with_context(|| t!("config_parse_failed", locale = locale))?;
 
-    let test_matrix: TestMatrix =
-        toml::from_str(&config_content).with_context(|| t!("config_parse_failed", locale = locale))?;
-
-    Ok((test_matrix, config_path))
+    Ok((config_matrix, config_path))
 }
 
+/// Prepares the environment for running tests.
 async fn prepare_environment(project_dir: &PathBuf, locale: &str) -> Result<(PathBuf, String)> {
     let project_root = fs::canonicalize(project_dir)
         .with_context(|| t!("project_dir_not_found", locale = locale, path = project_dir.display()))?;
@@ -168,6 +187,7 @@ async fn prepare_environment(project_dir: &PathBuf, locale: &str) -> Result<(Pat
     Ok((project_root, crate_name))
 }
 
+/// Sets up a signal handler for graceful shutdown.
 fn setup_signal_handler(locale: &str) -> Result<CancellationToken> {
     let token = CancellationToken::new();
     let token_clone = token.clone();
@@ -182,8 +202,9 @@ fn setup_signal_handler(locale: &str) -> Result<CancellationToken> {
     Ok(token)
 }
 
+/// Runs the test cases in parallel.
 async fn run_tests(
-    cases_to_run: Vec<crate::runner::config::TestCase>,
+    cases_to_run: Vec<crate::core::config::TestCase>,
     jobs: usize,
     project_root: &PathBuf,
     crate_name: &str,
@@ -246,28 +267,44 @@ async fn run_tests(
                         },
                     };
                 }
+
+                if !is_flaky && matches!(final_result, models::TestResult::Failed { .. }) {
+                    // Cancel other tasks if this is an unexpected failure
+                    fast_fail_token.cancel();
+                }
             }
 
-            // After the select block, check for fast fail.
-            if !is_flaky {
-                 if let models::TestResult::Failed{..} = &final_result {
-                    fast_fail_token.cancel();
-                 }
-            }
-            
             final_result
         })
-    }));
+    }))
+    .buffer_unordered(jobs)
+    .collect::<Vec<Result<models::TestResult, tokio::task::JoinError>>>()
+    .await;
 
-    let results: Vec<_> = stream
-        .buffer_unordered(jobs)
-        .map(|res| res.unwrap_or(models::TestResult::Skipped))
-        .collect()
-        .await;
-
-    let mut final_results = results;
-    final_results.sort_by_key(|r| r.case_name().to_string());
-    let has_unexpected_failures = final_results.iter().any(|r| r.is_unexpected_failure());
+    // Process results and check for unexpected failures
+    let mut has_unexpected_failures = false;
+    let final_results: Vec<models::TestResult> = stream
+        .into_iter()
+        .map(|res| match res {
+            Ok(test_result) => {
+                if matches!(test_result, models::TestResult::Failed { .. }) {
+                    if test_result.is_unexpected_failure() {
+                        has_unexpected_failures = true;
+                    }
+                }
+                test_result
+            }
+            Err(e) => {
+                has_unexpected_failures = true;
+                models::TestResult::Failed {
+                    case: crate::core::config::TestCase::default(),
+                    output: format!("Critical error during test execution: {}", e),
+                    reason: FailureReason::BuildFailed,
+                    duration: Duration::default(),
+                }
+            }
+        })
+        .collect();
 
     Ok((final_results, has_unexpected_failures))
 } 

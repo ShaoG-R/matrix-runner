@@ -1,26 +1,37 @@
-//! # Test Execution Module
+//! # Test Execution Engine Module / 测试执行引擎模块
 //!
 //! This module provides the core functionality for executing test cases.
 //! It handles the complete test lifecycle from building to execution,
 //! including timeouts, retries, and result collection.
+//!
+//! 此模块为执行测试用例提供核心功能。
+//! 它处理从构建到执行的完整测试生命周期，
+//! 包括超时、重试和结果收集。
 
 use anyhow::{bail, Context, Result};
 use colored::*;
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::time::timeout;
 
 use crate::{
-    runner::{
-        command,
+    core::{
         config::TestCase,
         models::{BuildContext, BuiltTest, FailureReason, TestResult},
     },
-    t,
+    infra::{command, t},
 };
 
 /// The main entry point for running a single test case.
 /// It wraps the core execution logic with timeout and retry handling.
+///
+/// # Arguments
+/// * `case` - The test case configuration to execute
+/// * `project_root` - Path to the project root directory
+/// * `crate_name` - Name of the crate being tested
+///
+/// # Returns
+/// A `TestResult` indicating the outcome of the test execution
 pub async fn run_test_case(
     case: TestCase,
     project_root: &PathBuf,
@@ -31,11 +42,11 @@ pub async fn run_test_case(
 
     for attempt in 1..=max_attempts {
         let case_name = case.name.clone();
-        let timeout = case.timeout_secs.map(std::time::Duration::from_secs);
+        let timeout_dur = case.timeout_secs.map(std::time::Duration::from_secs);
 
         let execution_future = run_test_case_inner(case.clone(), project_root, crate_name);
 
-        let result = if let Some(duration) = timeout {
+        let result = if let Some(duration) = timeout_dur {
             match tokio::time::timeout(duration, execution_future).await {
                 Ok(res) => res,
                 Err(_) => {
@@ -126,7 +137,7 @@ async fn run_custom_command_case(
         t!("running_test", name = case.name).blue()
     );
 
-    let start_time = std::time::Instant::now();
+    let start_time = Instant::now();
     let expanded_command = shellexpand::full(custom_command)
         .with_context(|| format!("Failed to expand command: {custom_command}"))?
         .to_string();
@@ -213,7 +224,7 @@ async fn run_default_flow_case(
                     case,
                     output: error_string,
                     reason: FailureReason::BuildFailed,
-                    duration: std::time::Duration::from_secs(0),
+                    duration: Duration::from_secs(0),
                 }
             };
             Ok(final_error_result)
@@ -227,15 +238,15 @@ async fn build_test_case(
     project_root: &PathBuf,
     crate_name: &str,
 ) -> Result<BuiltTest> {
-    let build_dir = crate::runner::utils::create_build_dir(project_root, &case.name)?;
-    let build_start_time = std::time::Instant::now();
+    let build_ctx = crate::infra::fs::create_build_dir(project_root, &case.name)?;
+    let build_start_time = Instant::now();
 
     let mut cmd = tokio::process::Command::new("cargo");
     cmd.arg("test")
         .arg("--no-run")
         .arg("--message-format=json")
         .arg("--target-dir")
-        .arg(build_dir.path())
+        .arg(&build_ctx.path)
         .arg("-p")
         .arg(crate_name);
 
@@ -248,80 +259,113 @@ async fn build_test_case(
 
     cmd.kill_on_drop(true).current_dir(project_root);
 
+    println!(
+        "{}",
+        t!("building_test", name = case.name).blue()
+    );
+
     let (status_res, output) = command::spawn_and_capture(cmd).await;
-    let status = status_res.context("Failed to get cargo build status")?;
     let build_duration = build_start_time.elapsed();
 
+    let status = status_res.with_context(|| "Failed to get build process status")?;
+
     if !status.success() {
-        let formatted_error = crate::runner::command::format_build_error_output(&output);
-        return Err(anyhow::Error::new(TestResult::Failed {
+        println!(
+            "{}",
+            t!("build_failed", name = case.name, duration = build_duration.as_secs()).red()
+        );
+
+        // Format and return the error output
+        let error_output = command::format_build_error_output(&output);
+        return Err(anyhow::anyhow!(TestResult::Failed {
             case,
-            output: formatted_error,
+            output: error_output,
             reason: FailureReason::Build,
             duration: build_duration,
         }));
     }
 
-    let artifacts = output
-        .lines()
-        .filter_map(|line| serde_json::from_str::<crate::runner::models::CargoMessage>(line).ok())
-        .filter_map(|msg| msg.into_artifact());
+    let mut test_binary: Option<PathBuf> = None;
 
-    let mut executables = Vec::new();
-    for artifact in artifacts {
-        if let Some(target) = artifact.target {
-            if target.kind.iter().any(|k| k == "test") {
-                executables.extend(artifact.filenames.into_iter());
+    for line in output.lines() {
+        if let Ok(message) = serde_json::from_str::<crate::core::models::CargoMessage>(line) {
+            if let Some(artifact) = message.into_artifact() {
+                if let (Some(target), Some(executable)) = (artifact.target, artifact.executable) {
+                    if target.test {
+                        test_binary = Some(executable);
+                        break;
+                    }
+                }
             }
         }
     }
 
+    let executable_path = test_binary.unwrap_or_default();
+    println!(
+        "{}",
+        t!("build_success", name = case.name, duration = build_duration.as_secs()).green()
+    );
+
     Ok(BuiltTest {
         case,
-        executable_path: executables.get(0).cloned().unwrap_or_default(),
+        executable_path,
         duration: build_duration,
     })
 }
 
-/// Executes a test that has already been built.
+/// Executes a previously built test binary.
 async fn run_built_test(built_test: BuiltTest, project_root: &PathBuf) -> Result<TestResult> {
-    let case = built_test.case;
-    let test_executable = built_test.executable_path;
-
+    let case = built_test.case.clone();
     println!(
         "{}",
         t!("running_test", name = case.name).blue()
     );
 
-    let start_time = std::time::Instant::now();
-    let mut cmd = tokio::process::Command::new(&test_executable);
+    let mut cmd = tokio::process::Command::new(&built_test.executable_path);
     cmd.kill_on_drop(true).current_dir(project_root);
 
+    let run_start_time = Instant::now();
     let (status_res, output) = command::spawn_and_capture(cmd).await;
-    let status = status_res.context("Failed to get process status")?;
-    let duration = start_time.elapsed();
+    let run_duration = run_start_time.elapsed();
+    let total_duration = built_test.duration + run_duration;
+
+    let status = status_res.with_context(|| "Failed to get test process status")?;
+
+    if !output.trim().is_empty() {
+        println!("{}", output.trim());
+    }
 
     if status.success() {
         println!(
             "{}",
-            t!("test_passed", name = case.name, duration = duration.as_secs()).green()
+            t!(
+                "test_passed",
+                name = case.name,
+                duration = total_duration.as_secs()
+            )
+            .green()
         );
         Ok(TestResult::Passed {
             case,
             output,
-            duration,
+            duration: total_duration,
             retries: 1,
         })
     } else {
         println!(
             "{}",
-            t!("test_failed", name = case.name, duration = duration.as_secs()).red()
+            t!(
+                "test_failed",
+                name = case.name,
+                duration = total_duration.as_secs()
+            )
+            .red()
         );
         Ok(TestResult::Failed {
             case,
             output,
             reason: FailureReason::TestFailed,
-            duration,
+            duration: total_duration,
         })
     }
-}
+} 

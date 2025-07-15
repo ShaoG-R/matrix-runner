@@ -1,9 +1,16 @@
+//! # Command Execution Module / 命令执行模块
+//!
+//! This module provides utilities for spawning processes, capturing their output,
+//! and formatting command results, particularly for Cargo commands.
+//!
+//! 此模块提供用于生成进程、捕获其输出和格式化命令结果的实用功能，
+//! 特别是针对 Cargo 命令。
+
 use colored::*;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader};
-
-use crate::t;
-use crate::runner::models::CargoMessage;
+use crate::core::models::CargoMessage;
+use crate::infra::t;
 
 /// Extracts and formats compiler errors from `cargo` JSON output.
 /// It filters for compiler messages, extracts error diagnostics, and prefers
@@ -160,4 +167,4 @@ pub async fn spawn_and_capture(
     }
 
     (status, output.lock().await.clone())
-}
+} 

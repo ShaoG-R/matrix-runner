@@ -8,12 +8,25 @@
 //!
 //! ## Modules / 模块
 //!
-//! - `runner` - Core test execution and configuration functionality
-//!   核心测试执行和配置功能
+//! - `core` - Core data models and test execution engine
+//! - `infra` - Infrastructure services like command execution and file system operations
+//! - `reporting` - Test result reporting and visualization
+//! - `cli` - Command-line interface and commands
+//!
+//! - `core` - 核心数据模型和测试执行引擎
+//! - `infra` - 基础设施服务，如命令执行和文件系统操作
+//! - `reporting` - 测试结果报告和可视化
+//! - `cli` - 命令行接口和命令
 
-pub mod runner;
-pub mod commands;
+pub mod core;
+pub mod infra;
+pub mod reporting;
 pub mod cli;
 
+// Re-export commonly used items
+pub use core::models;
+pub use core::config;
+pub use core::execution;
+
+// Initialize i18n
 rust_i18n::i18n!("locales");
-use rust_i18n::t;

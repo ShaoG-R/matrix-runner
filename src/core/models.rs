@@ -6,23 +6,9 @@
 //!
 //! 此模块定义了整个矩阵运行器中使用的核心数据结构。
 //! 它包括测试结果、构建上下文、失败原因和 cargo 特定消息格式的模型。
-//!
-//! ## Key Types / 关键类型
-//!
-//! - `TestResult` - Represents the outcome of a test case execution
-//! - `FailureReason` - Categorizes different types of test failures
-//! - `BuildContext` - Manages temporary build directories and their lifecycle
-//! - `BuiltTest` - Contains information about a successfully built test
-//! - `CargoMessage` - Parses JSON output from cargo commands
-//!
-//! - `TestResult` - 表示测试用例执行的结果
-//! - `FailureReason` - 分类不同类型的测试失败
-//! - `BuildContext` - 管理临时构建目录及其生命周期
-//! - `BuiltTest` - 包含成功构建测试的信息
-//! - `CargoMessage` - 解析 cargo 命令的 JSON 输出
 
-use crate::t;
-use crate::runner::config::TestCase;
+use crate::core::config::TestCase;
+use crate::infra::t;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::Duration;
@@ -98,13 +84,7 @@ impl TestResult {
     /// A failure is "unexpected" if it's a `Failed` variant and the current OS
     /// is not in the test case's `allow_failure` list.
     pub fn is_unexpected_failure(&self) -> bool {
-        matches!(
-            self,
-            TestResult::Failed {
-                reason,
-                ..
-            } if *reason != FailureReason::TestFailed
-        )
+        matches!(self, TestResult::Failed { reason, .. } if *reason != FailureReason::TestFailed)
     }
 
     /// Gets the name of the test case. Returns "Skipped" for skipped tests.
@@ -156,7 +136,7 @@ impl TestResult {
     }
 
     /// Gets the duration of the test case. Returns None if not applicable.
-    /// 获取测试用E例的持续时间。如果不适用，则返回 None。
+    /// 获取测试用例的持续时间。如果不适用，则返回 None。
     pub fn get_duration(&self) -> Option<Duration> {
         match self {
             TestResult::Passed { duration, .. } => Some(*duration),
@@ -236,8 +216,8 @@ pub struct BuiltTest {
     /// The path to the compiled test executable file.
     /// 指向已编译的测试可执行文件的路径。
     pub executable_path: PathBuf,
-    /// The build context, which manages the temporary directory for this test's artifacts.
-    /// 构建上下文，管理此测试产物的临时目录。
+    /// Duration of the build process
+    /// 构建过程的持续时间
     pub duration: Duration,
 }
 
@@ -250,11 +230,9 @@ impl BuiltTest {
     }
 }
 
-/// Represents a single diagnostic message from the compiler, part of a `CargoMessage`.
-/// This is used to parse JSON output from `cargo build`.
-/// 代表来自编译器的单个诊断消息，是 `CargoMessage` 的一部分。
-/// 用于解析来自 `cargo build` 的 JSON 输出。
-#[derive(Debug, Clone, Deserialize)]
+/// Diagnostic information for cargo compiler messages.
+/// 诊断信息，用于cargo编译器消息。
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CargoDiagnostic {
     /// The severity level of the diagnostic (e.g., "error", "warning").
     /// 诊断的严重级别（例如 "error", "warning"）。
@@ -267,11 +245,9 @@ pub struct CargoDiagnostic {
     pub rendered: Option<String>,
 }
 
-/// Represents a single message from `cargo build --message-format=json`.
-/// These messages can be compiler artifacts, build scripts, or diagnostics.
-/// 代表来自 `cargo build --message-format=json` 的单条消息。
-/// 这些消息可以是编译器产物、构建脚本或诊断信息。
-#[derive(Deserialize)]
+/// A structured representation of a message from Cargo's JSON output format.
+/// 来自Cargo的JSON输出格式的消息的结构化表示。
+#[derive(Debug, Clone, Deserialize)]
 pub struct CargoMessage {
     /// The reason for the message (e.g., "compiler-artifact", "compiler-message").
     /// 消息的原因（例如 "compiler-artifact", "compiler-message"）。
@@ -290,6 +266,8 @@ pub struct CargoMessage {
 }
 
 impl CargoMessage {
+    /// Returns the message if it's an artifact message, otherwise None.
+    /// 如果是产物消息则返回该消息，否则返回None。
     pub fn into_artifact(self) -> Option<Self> {
         if self.reason == "compiler-artifact" {
             Some(self)
@@ -299,9 +277,9 @@ impl CargoMessage {
     }
 }
 
-/// Represents the "target" field within a `CargoMessage`, identifying the crate and type of artifact.
-/// 代表 `CargoMessage` 中的 "target" 字段，用于标识 crate 和产物类型。
-#[derive(Deserialize)]
+/// Information about a compilation target from Cargo.
+/// 来自Cargo的编译目标信息。
+#[derive(Debug, Clone, Deserialize)]
 pub struct CargoTarget {
     /// The name of the crate being compiled.
     /// 正在编译的 crate 的名称。
@@ -312,14 +290,16 @@ pub struct CargoTarget {
     pub kind: Vec<String>,
 }
 
-/// Represents the `package` section of a `Cargo.toml` file.
-#[derive(Debug, Deserialize, Clone)]
+/// Package information from Cargo.toml
+/// 来自Cargo.toml的包信息
+#[derive(Debug, Clone, Deserialize)]
 pub struct Package {
     pub name: String,
 }
 
-/// Represents a `Cargo.toml` manifest.
-#[derive(Debug, Deserialize, Clone)]
+/// Cargo.toml manifest structure
+/// Cargo.toml清单结构
+#[derive(Debug, Clone, Deserialize)]
 pub struct Manifest {
     pub package: Package,
-}
+} 
