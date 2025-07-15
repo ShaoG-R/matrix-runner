@@ -1,22 +1,37 @@
+# en.toml
+
+# CLI (main.rs)
+cli_about = "A powerful, configuration-driven test executor for Rust projects."
+cli_lang = "Sets the display language (e.g., 'en', 'zh-CN'). Auto-detects if not specified."
+
+# Subcommands
+cmd_run_about = "Run tests based on the matrix configuration (default command)."
+cmd_init_about = "Launch an interactive wizard to create a new TestMatrix.toml file."
+
+# Run command arguments
+arg_jobs = "Number of parallel jobs, defaults to (logical CPUs / 2) + 1"
+arg_config = "Path to the test matrix config file, relative to project dir"
+arg_project_dir = "Path to the project directory to test"
+arg_total_runners = "Total number of parallel runners for splitting the test matrix"
+arg_runner_index = "Index of the current runner (0-based) when splitting the test matrix"
+arg_html = "Path to write an HTML report to. If provided, a report will be generated"
+
+# Init command arguments
+arg_init_language = "Language for the wizard interface and generated config file."
+
 # main.rs
 shutdown_signal = "Ctrl+C received, initiating graceful shutdown..."
 temp_dir_cleanup_info = "Temporary directories will be auto-cleaned for successful tests."
 failure_artifact_info = "Artifacts for failed tests will be preserved in './target-errors'."
-dep_fetch_start = "Fetching all dependencies to avoid lock contention..."
-dep_fetch_success = "Dependency fetching successful."
 project_root_detected = "Project root detected at: {}"
 testing_crate = "Testing crate: {}"
 loading_test_matrix = "Loading test matrix from: {}"
-current_arch = "Current architecture detected: {}"
 filtered_arch_cases = "Filtered out {} test case(s) based on current architecture. {} case(s) remaining."
 running_as_split_runner = "Running as runner {}/{} ({} cases assigned)"
 running_as_single_runner = "Running all test cases as a single runner."
 no_cases_to_run = "No test cases to run for this runner, exiting successfully."
 current_os = "Current OS detected: {}"
 flaky_cases_found = "{} flaky case(s) found. These are allowed to fail on the current OS."
-running_safe_cases = "\nRunning {} safe configurations with up to {} parallel jobs..."
-running_flaky_cases = "\nRunning {} flaky configurations with up to {} parallel jobs..."
-fast_fail_triggered = "A safe test failed. Triggering fast-fail and cancelling other safe tests..."
 all_tests_passed = "All tests passed successfully!"
 test_timeout = "Test '{}' timed out after {} seconds!"
 test_timeout_message = "Test failed due to timeout."
@@ -103,3 +118,19 @@ init_template_default_features = "Default features on stable Rust"
 init_template_no_default_features = "No default features (`no_std` setup)"
 init_template_all_features = "All features enabled"
 init_template_custom_command = "A custom command (e.g., for MIRI or wasm-pack)"
+
+TestPassedOnRetry = "Test '{0}' passed on retry {1}."
+TestFailedAfterRetries = "Test '{0}' failed after {1} retries."
+BuildFailed = "Build for test case '{0}' failed. See details below."
+BuildFailedUnexpected = "Build for '{0}' failed with an unexpected error."
+TestNoBinaries = "Test case '{0}' produced no runnable binaries."
+TestNoBinariesMessage = "No test binaries were found after a successful build. This usually means the test case has no `[[test]]` or `[[bin]]` targets, or they were filtered out."
+BuildLog = "Build Log"
+TestLog = "Test Log"
+ReportHeaderName = "Name"
+ReportHeaderResult = "Result"
+ReportHeaderTime = "Time"
+ReportHeaderFailure = "Failure"
+ReportStatusPassed = "Passed"
+ReportStatusFailed = "Failed"
+ReportStatusSkipped = "Skipped"

@@ -12,3 +12,8 @@
 //!   核心测试执行和配置功能
 
 pub mod runner;
+pub mod commands;
+pub mod cli;
+
+rust_i18n::i18n!("locales");
+use rust_i18n::t;

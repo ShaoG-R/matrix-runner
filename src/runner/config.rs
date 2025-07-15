@@ -49,6 +49,21 @@ pub struct TestCase {
     pub arch: Vec<String>,
 }
 
+impl Default for TestCase {
+    fn default() -> Self {
+        Self {
+            name: "unknown".to_string(),
+            features: "".to_string(),
+            no_default_features: false,
+            command: None,
+            timeout_secs: None,
+            retries: None,
+            allow_failure: vec![],
+            arch: vec![],
+        }
+    }
+}
+
 /// Represents the entire test matrix configuration, loaded from a TOML file.
 /// It contains global settings and a list of all test cases.
 /// 代表从 TOML 文件加载的整个测试矩阵配置。

@@ -2,8 +2,7 @@ use colored::*;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader};
 
-use crate::runner::i18n;
-use crate::runner::i18n::I18nKey;
+use crate::t;
 use crate::runner::models::CargoMessage;
 
 /// Extracts and formats compiler errors from `cargo` JSON output.
@@ -51,7 +50,7 @@ pub fn format_build_error_output(raw_output: &str) -> String {
         let snippet = raw_output.lines().take(50).collect::<Vec<_>>().join("\n");
         format!(
             "{}\n\n{}",
-            i18n::t(I18nKey::CompilerErrorParseFailed).yellow(),
+            t!("compiler_error_parse_failed").yellow(),
             snippet
         )
     } else {
@@ -102,7 +101,7 @@ pub async fn spawn_and_capture(
         Some(stdout) => stdout,
         None => {
             return (
-                Err(std::io::Error::other(i18n::t(I18nKey::CaptureStdoutFailed))),
+                Err(std::io::Error::other(t!("capture_stdout_failed"))),
                 String::new(),
             );
         }
@@ -111,7 +110,7 @@ pub async fn spawn_and_capture(
         Some(stderr) => stderr,
         None => {
             return (
-                Err(std::io::Error::other(i18n::t(I18nKey::CaptureStderrFailed))),
+                Err(std::io::Error::other(t!("capture_stderr_failed"))),
                 String::new(),
             );
         }

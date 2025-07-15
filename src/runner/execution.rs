@@ -1,74 +1,33 @@
-//! # Test Execution Module / 测试执行模块
+//! # Test Execution Module
 //!
-//! This module provides the core functionality for executing test cases in isolated
-//! environments. It handles the complete test lifecycle from building to execution,
-//! including dependency management, environment isolation, and result collection.
-//!
-//! 此模块提供在隔离环境中执行测试用例的核心功能。
-//! 它处理从构建到执行的完整测试生命周期，包括依赖管理、环境隔离和结果收集。
-//!
-//! ## Features / 功能特性
-//!
-//! - **Isolated Builds**: Each test case is built in a separate temporary directory
-//! - **Dependency Management**: Automatic copying of source code and dependencies
-//! - **Timeout Handling**: Configurable timeouts for both build and test phases
-//! - **Error Capture**: Comprehensive error output capture and formatting
-//! - **Parallel Execution**: Support for concurrent test execution
-//!
-//! - **隔离构建**: 每个测试用例在单独的临时目录中构建
-//! - **依赖管理**: 自动复制源代码和依赖项
-//! - **超时处理**: 构建和测试阶段的可配置超时
-//! - **错误捕获**: 全面的错误输出捕获和格式化
-//! - **并行执行**: 支持并发测试执行
+//! This module provides the core functionality for executing test cases.
+//! It handles the complete test lifecycle from building to execution,
+//! including timeouts, retries, and result collection.
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use colored::*;
-use std::fs;
 use std::path::PathBuf;
+use std::time::Duration;
+use tokio::time::timeout;
 
-use crate::runner::command::{format_build_error_output, spawn_and_capture};
-use crate::runner::config::TestCase;
-use crate::runner::i18n;
-use crate::runner::i18n::I18nKey;
-use crate::runner::models::CargoMessage;
-use crate::runner::models::{BuiltTest, FailureReason, TestResult};
-use crate::runner::utils::{copy_dir_all, create_build_dir};
+use crate::{
+    runner::{
+        command,
+        config::TestCase,
+        models::{BuildContext, BuiltTest, FailureReason, TestResult},
+    },
+    t,
+};
 
-/// Runs a complete test case, which involves two main phases: building and running.
-/// This function orchestrates the entire lifecycle for a single test configuration.
-/// If the build phase fails, the function will return early with a build failure.
-///
-/// # Arguments
-/// * `case` - The `TestCase` configuration to run.
-/// * `project_root` - The absolute path to the root of the project being tested.
-/// * `crate_name` - The name of the crate being tested.
-/// * `stop_token` - An optional `CancellationToken` to gracefully stop the execution.
-///
-/// # Returns
-/// A `Result` containing either a successful `TestResult` or an error `TestResult`.
-/// The `Err` variant is used to signal failure to the caller, which can then decide
-/// whether to stop other parallel tests.
-///
-/// 运行一个完整的测试用例，包括两个主要阶段：构建和运行。
-/// 此函数协调单个测试配置的整个生命周期。
-/// 如果构建阶段失败，函数将提前返回一个构建失败结果。
-///
-/// # Arguments
-/// * `case` - 要运行的 `TestCase` 配置。
-/// * `project_root` - 被测试项目根目录的绝对路径。
-/// * `crate_name` - 被测试的 crate 名称。
-/// * `stop_token` - 一个可选的 `CancellationToken`，用于优雅地停止执行。
-///
-/// # Returns
-/// 一个 `Result`，包含成功的 `TestResult` 或错误的 `TestResult`。
-/// `Err` 变体用于向调用者发信号表示失败，调用者可以据此决定是否停止其他并行测试。
+/// The main entry point for running a single test case.
+/// It wraps the core execution logic with timeout and retry handling.
 pub async fn run_test_case(
     case: TestCase,
     project_root: &PathBuf,
     crate_name: &str,
 ) -> Result<TestResult> {
     let max_attempts = 1 + case.retries.unwrap_or(0);
-    let mut last_result = Err(anyhow::anyhow!("Test case was not run."));
+    let mut last_result: Option<TestResult> = None;
 
     for attempt in 1..=max_attempts {
         let case_name = case.name.clone();
@@ -82,11 +41,11 @@ pub async fn run_test_case(
                 Err(_) => {
                     println!(
                         "{}",
-                        i18n::t_fmt(I18nKey::TestTimeout, &[&case_name, &duration.as_secs()]).red()
+                        t!("test_timeout", name = case_name, duration = duration.as_secs()).red()
                     );
                     Ok(TestResult::Failed {
                         case: case.clone(),
-                        output: i18n::t(I18nKey::TestTimeoutMessage),
+                        output: t!("test_timeout_message").to_string(),
                         reason: FailureReason::Timeout,
                         duration,
                     })
@@ -104,395 +63,264 @@ pub async fn run_test_case(
                 ..
             }) => {
                 let final_result = TestResult::Passed {
-                    case: case.clone(),
+                    case,
                     output,
                     duration,
                     retries: attempt as u8,
                 };
-
                 if attempt > 1 {
                     println!(
                         "{}",
-                        i18n::t_fmt(I18nKey::TestPassedOnRetry, &[&case_name, &(attempt - 1)])
-                            .green()
+                        t!("test_passed_on_retry", name = case_name, attempt = attempt - 1).green()
                     );
                 }
                 return Ok(final_result);
             }
-            Ok(TestResult::Failed {
-                reason,
-                output,
-                duration,
-                ..
-            }) => {
-                // Do not retry on timeout
-                if reason == FailureReason::Timeout {
-                    return Ok(TestResult::Failed {
-                        case: case.clone(),
-                        reason,
-                        output,
-                        duration,
-                    });
+            Ok(res) => {
+                if res.is_timeout() {
+                    return Ok(res);
                 }
-
                 if attempt < max_attempts {
                     println!(
                         "{}",
-                        i18n::t_fmt(
-                            I18nKey::TestRetrying,
-                            &[&case_name, &attempt, &max_attempts]
-                        )
-                        .yellow()
+                        t!("test_retrying", name = case_name, attempt = attempt, total = max_attempts).yellow()
                     );
                 } else {
                     println!(
                         "{}",
-                        i18n::t_fmt(
-                            I18nKey::TestFailedAfterRetries,
-                            &[&case_name, &case.retries.unwrap_or(0)]
-                        )
-                        .red()
-                        .bold()
+                        t!("test_failed_after_retries", name = case_name, retries = case.retries.unwrap_or(0)).red()
                     );
                 }
-                last_result = Ok(TestResult::Failed {
-                    case: case.clone(),
-                    reason,
-                    output,
-                    duration,
-                });
+                last_result = Some(res);
             }
-            Ok(res) => return Ok(res), // For Skipped
             Err(e) => {
-                last_result = Err(e);
-                break;
+                eprintln!("A critical error occurred during test execution: {}", e);
+                return Ok(TestResult::Skipped);
             }
         }
     }
-
-    // Handle the final result after all retries are exhausted.
-    match last_result {
-        Ok(final_result) => Ok(final_result),
-        Err(e) => {
-            // If the loop terminated due to a critical error (e.g., in shellexpand),
-            // wrap it in a generic TestResult::Skipped or another appropriate error type.
-            eprintln!("A critical error occurred during test execution: {}", e);
-            Ok(TestResult::Skipped)
-        }
-    }
+    Ok(last_result.unwrap_or(TestResult::Skipped))
 }
 
+/// Dispatches to the correct execution flow based on whether a custom command is present.
 async fn run_test_case_inner(
     case: TestCase,
     project_root: &PathBuf,
     crate_name: &str,
 ) -> Result<TestResult> {
-    // If a custom command is provided, we use the custom command flow.
-    // The command is expected to handle both "build" and "test" logic.
     if let Some(custom_command) = &case.command {
-        println!(
-            "{}",
-            i18n::t_fmt(I18nKey::RunningTest, &[&case.name]).blue()
-        );
-
-        let start_time = std::time::Instant::now();
-
-        let expanded_command = shellexpand::full(custom_command)
-            .with_context(|| format!("Failed to expand command: {custom_command}"))?
-            .to_string();
-
-        let parts = shlex::split(&expanded_command)
-            .ok_or_else(|| anyhow::anyhow!("Failed to parse command: {}", expanded_command))?;
-
-        if parts.is_empty() {
-            return Err(anyhow::anyhow!("Empty command after parsing."));
-        }
-
-        let program = &parts[0];
-        let args = &parts[1..];
-
-        let mut cmd = tokio::process::Command::new(program);
-        cmd.args(args);
-        cmd.kill_on_drop(true);
-        cmd.current_dir(project_root);
-
-        let (status_res, output) = spawn_and_capture(cmd).await;
-        let status = status_res.context("Failed to get process status")?;
-        let duration = start_time.elapsed();
-
-        // Always print the output from the custom command
-        if !output.trim().is_empty() {
-            println!("{}", output.trim());
-        }
-
-        if status.success() {
-            println!(
-                "{}",
-                i18n::t_fmt(
-                    I18nKey::TestPassed,
-                    &[&case.name, &format!("{duration:.2?}")]
-                )
-                .green()
-            );
-            return Ok(TestResult::Passed {
-                case,
-                output,
-                duration,
-                retries: 1, // Placeholder, will be adjusted by the caller loop
-            });
-        } else {
-            println!(
-                "{}",
-                i18n::t_fmt(
-                    I18nKey::TestFailed,
-                    &[&case.name, &format!("{duration:.2?}")]
-                )
-                .red()
-            );
-            // For custom commands, we don't have artifacts to preserve in the same way,
-            // so we just return the failure. The output from the command is the primary artifact.
-            return Ok(TestResult::Failed {
-                case,
-                output,
-                reason: FailureReason::CustomCommand,
-                duration,
-            });
-        }
+        run_custom_command_case(case.clone(), project_root, custom_command).await
+    } else {
+        run_default_flow_case(case, project_root, crate_name).await
     }
-
-    // --- Default flow (no custom command) ---
-    let build_start_time = std::time::Instant::now();
-    let built_test = match build_test_case(case.clone(), project_root, crate_name).await {
-        Ok(built_test) => built_test,
-        Err(e) => {
-            let build_duration = build_start_time.elapsed();
-            // Pre-format the build error here so the data model is clean.
-            let formatted_error = format_build_error_output(&e.to_string());
-            return Ok(TestResult::Failed {
-                case,
-                output: formatted_error,
-                reason: FailureReason::Build,
-                duration: build_duration,
-            });
-        }
-    };
-
-    Ok(run_built_test(built_test, project_root).await?)
 }
 
-/// Builds a single test case using `cargo test --no-run` in an isolated environment.
-/// Creates a temporary, isolated directory for build artifacts to prevent interference
-/// between parallel test runs. Copies the entire project source to the temporary
-/// directory and builds the test executable with the specified feature configuration.
-///
-/// 在隔离环境中使用 `cargo test --no-run` 构建单个测试用例。
-/// 为构建产物创建临时的隔离目录，以防止并行测试运行之间的干扰。
-/// 将整个项目源代码复制到临时目录，并使用指定的 feature 配置构建测试可执行文件。
-///
-/// # Arguments / 参数
-/// * `case` - The test case configuration containing features and build settings
-///            包含 features 和构建设置的测试用例配置
-/// * `project_root` - The absolute path to the root of the project being tested
-///                    被测试项目根目录的绝对路径
-/// * `crate_name` - The name of the crate being tested, used to identify the executable
-///                  被测试的 crate 名称，用于识别可执行文件
-///
-/// # Returns / 返回值
-/// * `Result<BuiltTest>` - On success, contains the executable path and build context
-///                         成功时包含可执行文件路径和构建上下文
-///
-/// # Errors / 错误
-/// This function will return an error if:
-/// - The temporary build directory cannot be created
-/// - Source code copying fails
-/// - The cargo build command fails
-/// - The built executable cannot be found
-///
-/// 此函数在以下情况下会返回错误：
-/// - 无法创建临时构建目录
-/// - 源代码复制失败
-/// - cargo 构建命令失败
-/// - 找不到构建的可执行文件
-async fn build_test_case(
+/// Executes a test case defined by a custom shell command.
+async fn run_custom_command_case(
     case: TestCase,
     project_root: &PathBuf,
-    crate_name: &str,
-) -> Result<BuiltTest> {
+    custom_command: &str,
+) -> Result<TestResult> {
     println!(
         "{}",
-        i18n::t_fmt(I18nKey::BuildingTest, &[&case.name]).blue()
+        t!("running_test", name = case.name).blue()
     );
-
-    let build_ctx = create_build_dir(crate_name, &case.features, case.no_default_features)?;
-
-    let mut cmd = tokio::process::Command::new("cargo");
-    cmd.kill_on_drop(true);
-    cmd.current_dir(project_root);
-    cmd.arg("test")
-        .arg("--lib")
-        .arg("--no-run")
-        .arg("--message-format=json-diagnostic-rendered-ansi")
-        .arg("--locked")
-        .arg("--offline")
-        .arg("--target-dir")
-        .arg(&build_ctx.target_path);
-
-    if case.no_default_features {
-        cmd.arg("--no-default-features");
-    }
-
-    if !case.features.is_empty() {
-        cmd.arg("--features").arg(&case.features);
-    }
-
-    let command_string = format!(
-        "cargo test --lib --no-run --message-format=json-diagnostic-rendered-ansi --locked --offline --target-dir \"{}\" {} {}",
-        build_ctx.target_path.display(),
-        if case.no_default_features { "--no-default-features" } else { "" },
-        if !case.features.is_empty() { format!("--features \"{}\"", case.features) } else { "".to_string() }
-    ).split_whitespace().collect::<Vec<&str>>().join(" ");
-
-    let (status_res, output) = spawn_and_capture(cmd).await;
-    let status = status_res.context("Failed to get process status")?;
-
-    if !status.success() {
-        let sanitized_name = case
-            .name
-            .chars()
-            .map(|c| if c.is_alphanumeric() { c } else { '_' })
-            .collect::<String>();
-        let error_dir_path = project_root.join("target-errors").join(sanitized_name);
-
-        println!(
-            "{}\n  Command: {}",
-            i18n::t_fmt(
-                I18nKey::BuildFailedPreserving,
-                &[&case.name, &error_dir_path.display()]
-            )
-            .yellow(),
-            command_string.cyan()
-        );
-
-        if error_dir_path.exists() {
-            fs::remove_dir_all(&error_dir_path)
-                .context(i18n::t(I18nKey::CleanupOldArtifactsFailed).to_string())?;
-        }
-
-        copy_dir_all(&build_ctx.target_path, &error_dir_path)
-            .context(i18n::t_fmt(I18nKey::CopyArtifactsFailed, &[&case.name, &""]).to_string())?;
-
-        return Err(anyhow::anyhow!(output));
-    }
-
-    let executable = output
-        .lines()
-        .filter_map(|line| serde_json::from_str::<CargoMessage>(line).ok())
-        .find_map(|msg| {
-            if msg.reason == "compiler-artifact" {
-                if let (Some(target), Some(executable_path)) = (msg.target, msg.executable) {
-                    if target.name == crate_name && target.test {
-                        return Some(executable_path);
-                    }
-                }
-            }
-            None
-        })
-        .context(i18n::t(I18nKey::FindExecutableFailed))?;
-
-    println!(
-        "{}",
-        i18n::t_fmt(I18nKey::BuildSuccessful, &[&case.name]).green()
-    );
-
-    Ok(BuiltTest {
-        case,
-        executable,
-        build_ctx,
-    })
-}
-
-/// Runs a test executable that has already been built.
-/// It captures the output and status of the executable. If the test fails,
-/// its build artifacts are preserved for debugging.
-///
-/// # Returns
-/// A `Result<TestResult, TestResult>` indicating the outcome. On success, the temporary
-/// build directory is cleaned up. On failure, it is preserved.
-///
-/// 运行一个已经构建好的测试可执行文件。
-/// 它会捕获可执行文件的输出和状态。如果测试失败，其构建产物将被保留以供调试。
-///
-/// # Returns
-/// 一个 `Result<TestResult, TestResult>`，指示执行结果。成功时，临时构建目录会被清理。
-/// 失败时，它将被保留。
-async fn run_built_test(built_test: BuiltTest, project_root: &PathBuf) -> Result<TestResult> {
-    let case = built_test.case;
-    let executable = built_test.executable;
-    let build_ctx = built_test.build_ctx; // Transferred ownership for cleanup
 
     let start_time = std::time::Instant::now();
-    println!(
-        "{}",
-        i18n::t_fmt(I18nKey::RunningTest, &[&case.name]).blue()
-    );
+    let expanded_command = shellexpand::full(custom_command)
+        .with_context(|| format!("Failed to expand command: {custom_command}"))?
+        .to_string();
 
-    let mut cmd = tokio::process::Command::new(&executable);
-    cmd.kill_on_drop(true);
+    let parts = shlex::split(&expanded_command)
+        .ok_or_else(|| anyhow::anyhow!("Failed to parse command: {}", expanded_command))?;
 
-    let (status_res, output) = spawn_and_capture(cmd).await;
+    if parts.is_empty() {
+        return Err(anyhow::anyhow!("Empty command after parsing."));
+    }
+
+    let program = &parts[0];
+    let args = &parts[1..];
+
+    let mut cmd = tokio::process::Command::new(program);
+    cmd.args(args).kill_on_drop(true).current_dir(project_root);
+
+    let (status_res, output) = command::spawn_and_capture(cmd).await;
     let status = status_res.context("Failed to get process status")?;
-
     let duration = start_time.elapsed();
+
+    if !output.trim().is_empty() {
+        println!("{}", output.trim());
+    }
 
     if status.success() {
         println!(
             "{}",
-            i18n::t_fmt(
-                I18nKey::TestPassed,
-                &[&case.name, &format!("{duration:.2?}")]
-            )
-            .green()
+            t!("test_passed", name = case.name, duration = duration.as_secs()).green()
         );
         Ok(TestResult::Passed {
             case,
             output,
             duration,
-            retries: 1, // Placeholder, will be adjusted by the caller loop
+            retries: 1,
         })
     } else {
         println!(
             "{}",
-            i18n::t_fmt(
-                I18nKey::TestFailed,
-                &[&case.name, &format!("{duration:.2?}")]
-            )
-            .red()
+            t!("test_failed", name = case.name, duration = duration.as_secs()).red()
         );
-
-        let sanitized_name = case
-            .name
-            .chars()
-            .map(|c| if c.is_alphanumeric() { c } else { '_' })
-            .collect::<String>();
-        let error_dir_path = project_root.join("target-errors").join(sanitized_name);
-
-        if !error_dir_path.exists() {
-            println!(
-                "{}",
-                i18n::t_fmt(I18nKey::PreservingArtifacts, &[&error_dir_path.display()]).yellow()
-            );
-            copy_dir_all(&build_ctx.target_path, &error_dir_path).unwrap_or_else(|e| {
-                eprintln!(
-                    "{}",
-                    i18n::t_fmt(I18nKey::CopyArtifactsFailed, &[&case.name, &e.to_string()])
-                )
-            });
-        }
-
         Ok(TestResult::Failed {
             case,
             output,
-            reason: FailureReason::Test,
+            reason: FailureReason::CustomCommand,
+            duration,
+        })
+    }
+}
+
+/// Executes the default test flow: build the test, then run the resulting binary.
+async fn run_default_flow_case(
+    case: TestCase,
+    project_root: &PathBuf,
+    crate_name: &str,
+) -> Result<TestResult> {
+    match build_test_case(case.clone(), project_root, crate_name).await {
+        Ok(built_test) => {
+            if built_test.executable_path.as_os_str().is_empty() {
+                println!(
+                    "{}",
+                    t!("test_no_binaries", name = case.name).yellow()
+                );
+                return Ok(TestResult::Passed {
+                    case,
+                    output: t!("test_no_binaries_message").to_string(),
+                    duration: built_test.duration,
+                    retries: 1,
+                });
+            }
+            run_built_test(built_test, project_root).await
+        }
+        Err(e) => {
+            let error_string = e.to_string();
+            let final_error_result = if let Ok(test_result) = e.downcast::<TestResult>() {
+                test_result
+            } else {
+                println!(
+                    "{}",
+                    t!("build_failed_unexpected", name = case.name).red()
+                );
+                println!("  Error: {}", error_string);
+                TestResult::Failed {
+                    case,
+                    output: error_string,
+                    reason: FailureReason::BuildFailed,
+                    duration: std::time::Duration::from_secs(0),
+                }
+            };
+            Ok(final_error_result)
+        }
+    }
+}
+
+/// Builds a single test case using `cargo test --no-run`.
+async fn build_test_case(
+    case: TestCase,
+    project_root: &PathBuf,
+    crate_name: &str,
+) -> Result<BuiltTest> {
+    let build_dir = crate::runner::utils::create_build_dir(project_root, &case.name)?;
+    let build_start_time = std::time::Instant::now();
+
+    let mut cmd = tokio::process::Command::new("cargo");
+    cmd.arg("test")
+        .arg("--no-run")
+        .arg("--message-format=json")
+        .arg("--target-dir")
+        .arg(build_dir.path())
+        .arg("-p")
+        .arg(crate_name);
+
+    if case.no_default_features {
+        cmd.arg("--no-default-features");
+    }
+    if !case.features.is_empty() {
+        cmd.arg("--features").arg(&case.features);
+    }
+
+    cmd.kill_on_drop(true).current_dir(project_root);
+
+    let (status_res, output) = command::spawn_and_capture(cmd).await;
+    let status = status_res.context("Failed to get cargo build status")?;
+    let build_duration = build_start_time.elapsed();
+
+    if !status.success() {
+        let formatted_error = crate::runner::command::format_build_error_output(&output);
+        return Err(anyhow::Error::new(TestResult::Failed {
+            case,
+            output: formatted_error,
+            reason: FailureReason::Build,
+            duration: build_duration,
+        }));
+    }
+
+    let artifacts = output
+        .lines()
+        .filter_map(|line| serde_json::from_str::<crate::runner::models::CargoMessage>(line).ok())
+        .filter_map(|msg| msg.into_artifact());
+
+    let mut executables = Vec::new();
+    for artifact in artifacts {
+        if let Some(target) = artifact.target {
+            if target.kind.iter().any(|k| k == "test") {
+                executables.extend(artifact.filenames.into_iter());
+            }
+        }
+    }
+
+    Ok(BuiltTest {
+        case,
+        executable_path: executables.get(0).cloned().unwrap_or_default(),
+        duration: build_duration,
+    })
+}
+
+/// Executes a test that has already been built.
+async fn run_built_test(built_test: BuiltTest, project_root: &PathBuf) -> Result<TestResult> {
+    let case = built_test.case;
+    let test_executable = built_test.executable_path;
+
+    println!(
+        "{}",
+        t!("running_test", name = case.name).blue()
+    );
+
+    let start_time = std::time::Instant::now();
+    let mut cmd = tokio::process::Command::new(&test_executable);
+    cmd.kill_on_drop(true).current_dir(project_root);
+
+    let (status_res, output) = command::spawn_and_capture(cmd).await;
+    let status = status_res.context("Failed to get process status")?;
+    let duration = start_time.elapsed();
+
+    if status.success() {
+        println!(
+            "{}",
+            t!("test_passed", name = case.name, duration = duration.as_secs()).green()
+        );
+        Ok(TestResult::Passed {
+            case,
+            output,
+            duration,
+            retries: 1,
+        })
+    } else {
+        println!(
+            "{}",
+            t!("test_failed", name = case.name, duration = duration.as_secs()).red()
+        );
+        Ok(TestResult::Failed {
+            case,
+            output,
+            reason: FailureReason::TestFailed,
             duration,
         })
     }

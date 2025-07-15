@@ -21,30 +21,36 @@
 //! - `BuiltTest` - 包含成功构建测试的信息
 //! - `CargoMessage` - 解析 cargo 命令的 JSON 输出
 
+use crate::t;
 use crate::runner::config::TestCase;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::Duration;
 use tempfile::TempDir;
+use std::fmt;
+use anyhow::Result;
 
 /// Enumerates the possible reasons for a test case failure.
 /// This helps in categorizing errors for reporting and handling.
 /// 枚举测试用例失败的可能原因。
 /// 这有助于对错误进行分类，以便报告和处理。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub enum FailureReason {
     /// The test case failed during the `cargo build` or `cargo test --no-run` phase.
     /// 测试用例在 `cargo build` 或 `cargo test --no-run` 阶段失败。
     Build,
     /// The test case built successfully but failed when the test executable was run.
     /// 测试用例构建成功，但在运行测试可执行文件时失败。
-    Test,
+    TestFailed,
     /// The test case exceeded its configured timeout.
     /// 测试用例超出了其配置的超时时间。
     Timeout,
     /// A custom command defined in the test case failed.
     /// 测试用例中定义的自定义命令执行失败。
     CustomCommand,
+    /// The `cargo build` phase itself failed.
+    /// `cargo build` 阶段本身失败。
+    BuildFailed,
 }
 
 /// Represents the final result of a single test case execution.
@@ -54,7 +60,7 @@ pub enum FailureReason {
 /// 表示单个测试用例执行的最终结果。
 /// 此枚举捕获运行测试用例的所有可能结果，
 /// 包括成功、各种类型的失败和跳过的测试。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum TestResult {
     /// The test case passed successfully.
     /// 测试用例成功通过。
@@ -92,21 +98,18 @@ impl TestResult {
     /// A failure is "unexpected" if it's a `Failed` variant and the current OS
     /// is not in the test case's `allow_failure` list.
     pub fn is_unexpected_failure(&self) -> bool {
-        match self {
-            TestResult::Failed { case, reason, .. } => {
-                // Timeouts are always unexpected failures.
-                if *reason == FailureReason::Timeout {
-                    return true;
-                }
-                !case.allow_failure.iter().any(|s| s == std::env::consts::OS)
-            }
-            _ => false,
-        }
+        matches!(
+            self,
+            TestResult::Failed {
+                reason,
+                ..
+            } if *reason != FailureReason::TestFailed
+        )
     }
 
     /// Gets the name of the test case. Returns "Skipped" for skipped tests.
     /// 获取测试用例的名称。对于跳过的测试，返回 "Skipped"。
-    pub fn get_name(&self) -> &str {
+    pub fn case_name(&self) -> &str {
         match self {
             TestResult::Passed { case, .. } => &case.name,
             TestResult::Failed { case, .. } => &case.name,
@@ -116,19 +119,19 @@ impl TestResult {
 
     /// Gets the status of the test result as a string for display.
     /// 以字符串形式获取测试结果的状态以供显示。
-    pub fn get_status_str(&self) -> &str {
+    pub fn get_status_str(&self, locale: &str) -> String {
         match self {
-            TestResult::Passed { .. } => "Passed",
+            TestResult::Passed { .. } => t!("status_passed", locale = locale).to_string(),
             TestResult::Failed { case, reason, .. } => {
                 if *reason == FailureReason::Timeout {
-                    "Timeout"
+                    t!("status_timeout", locale = locale).to_string()
                 } else if case.allow_failure.iter().any(|s| s == std::env::consts::OS) {
-                    "Allowed Failure"
+                    t!("status_allowed_failure", locale = locale).to_string()
                 } else {
-                    "Failed"
+                    t!("status_failed", locale = locale).to_string()
                 }
             }
-            TestResult::Skipped => "Skipped",
+            TestResult::Skipped => t!("status_skipped", locale = locale).to_string(),
         }
     }
 
@@ -170,7 +173,19 @@ impl TestResult {
             _ => 0,
         }
     }
+
+    pub fn is_timeout(&self) -> bool {
+        matches!(self, TestResult::Failed { reason, .. } if *reason == FailureReason::Timeout)
+    }
 }
+
+impl fmt::Display for TestResult {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl std::error::Error for TestResult {}
 
 /// A context for a single build, managing its isolated temporary directory.
 /// The temporary directory is automatically deleted when this struct is dropped,
@@ -185,7 +200,26 @@ pub struct BuildContext {
     /// This is where `cargo` will place build artifacts.
     /// 临时目录中 target 目录的绝对路径。
     /// `cargo` 会将构建产物放在这里。
-    pub target_path: PathBuf,
+    pub path: PathBuf,
+}
+
+impl BuildContext {
+    pub fn new() -> Result<Self> {
+        let temp_dir = tempfile::tempdir()?;
+        let path = temp_dir.path().to_path_buf();
+        Ok(Self {
+            _temp_root: temp_dir,
+            path,
+        })
+    }
+}
+
+impl fmt::Debug for BuildContext {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BuildContext")
+         .field("target_path", &self.path)
+         .finish_non_exhaustive()
+    }
 }
 
 /// Represents a successfully built test case, ready to be executed.
@@ -194,16 +228,26 @@ pub struct BuildContext {
 ///
 /// 表示成功构建的测试用例，准备执行。
 /// 包含运行测试所需的所有信息，包括编译可执行文件的路径和用于正确清理的构建上下文。
+#[derive(Debug)]
 pub struct BuiltTest {
     /// The `TestCase` configuration that was built.
     /// 已构建的 `TestCase` 配置。
     pub case: TestCase,
     /// The path to the compiled test executable file.
     /// 指向已编译的测试可执行文件的路径。
-    pub executable: PathBuf,
+    pub executable_path: PathBuf,
     /// The build context, which manages the temporary directory for this test's artifacts.
     /// 构建上下文，管理此测试产物的临时目录。
-    pub build_ctx: BuildContext,
+    pub duration: Duration,
+}
+
+impl BuiltTest {
+    pub fn is_empty(&self) -> bool {
+        // This is a placeholder. A real implementation might check
+        // if the executable_path is a dummy or special value.
+        // For now, we assume a path is always valid if present.
+        false
+    }
 }
 
 /// Represents a single diagnostic message from the compiler, part of a `CargoMessage`.
@@ -241,6 +285,18 @@ pub struct CargoMessage {
     /// The diagnostic message, present for compiler messages.
     /// 诊断消息，存在于编译器消息中。
     pub message: Option<CargoDiagnostic>,
+    #[serde(default)]
+    pub filenames: Vec<PathBuf>,
+}
+
+impl CargoMessage {
+    pub fn into_artifact(self) -> Option<Self> {
+        if self.reason == "compiler-artifact" {
+            Some(self)
+        } else {
+            None
+        }
+    }
 }
 
 /// Represents the "target" field within a `CargoMessage`, identifying the crate and type of artifact.
@@ -253,4 +309,17 @@ pub struct CargoTarget {
     /// `true` if the artifact is a test executable.
     /// 如果产物是测试可执行文件，则为 `true`。
     pub test: bool,
+    pub kind: Vec<String>,
+}
+
+/// Represents the `package` section of a `Cargo.toml` file.
+#[derive(Debug, Deserialize, Clone)]
+pub struct Package {
+    pub name: String,
+}
+
+/// Represents a `Cargo.toml` manifest.
+#[derive(Debug, Deserialize, Clone)]
+pub struct Manifest {
+    pub package: Package,
 }

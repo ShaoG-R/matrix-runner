@@ -14,7 +14,7 @@
     --table-border-color: #dee2e6;
 }
 body {
-    font-family: var(--font-family-sans-serif);
+    font-family: var(--font-family-sans-serif),serif;
     line-height: 1.6;
     color: #333;
     margin: 0;
@@ -117,7 +117,7 @@ pre.output-content {
     border-radius: 5px;
     white-space: pre-wrap;
     word-wrap: break-word;
-    font-family: var(--font-family-monospace);
+    font-family: var(--font-family-monospace),monospace;
     margin-top: 10px;
 }
 .duration-cell, .retries-cell {

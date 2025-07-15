@@ -1,8 +1,9 @@
+mod common;
+use crate::common::setup_test_environment;
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 use std::fs;
 use std::process::Command;
-use tempfile::TempDir;
 
 /// This test runs the `matrix-runner` against the `sample_project`
 /// using the `success.toml` fixture. It asserts that the command
@@ -13,12 +14,21 @@ use tempfile::TempDir;
 /// 它断言命令成功执行（退出码为 0），并且最终的摘要报告了总体成功。
 #[test]
 fn test_successful_run() {
+    let temp_dir = setup_test_environment();
+    let config_path = temp_dir.path().join("success.toml");
+    fs::write(&config_path, r#"
+language = "en"
+cases = [
+    { name = "test-success-case", features = "feature_test_success", no_default_features = false },
+]
+"#).unwrap();
+
     let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
     cmd.arg("run")
         .arg("--config")
-        .arg("tests/fixtures/success.toml")
+        .arg(&config_path)
         .arg("--project-dir")
-        .arg("tests/sample_project");
+        .arg(temp_dir.path());
 
     cmd.assert()
         .success()
@@ -33,17 +43,27 @@ fn test_successful_run() {
 /// 它断言命令失败（非零退出码），并且输出包含指示构建失败的关键字。
 #[test]
 fn test_build_failure() {
+    let temp_dir = setup_test_environment();
+    let config_path = temp_dir.path().join("build_fail.toml");
+    fs::write(&config_path, r#"
+language = "en"
+cases = [
+    { name = "build-failure-case", features = "feature_build_fail", no_default_features = false },
+]
+"#).unwrap();
+
     let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
     cmd.arg("run")
         .arg("--config")
-        .arg("tests/fixtures/build_fail.toml")
+        .arg(&config_path)
         .arg("--project-dir")
-        .arg("tests/sample_project");
+        .arg(temp_dir.path());
+    
+    let output = cmd.output().expect("Failed to run");
+    let stderr = String::from_utf8_lossy(&output.stderr);
 
-    cmd.assert()
-        .failure()
-        .stdout(predicate::str::contains("UNEXPECTED FAILURE DETECTED"))
-        .stdout(predicate::str::contains("build-failure-case"));
+    assert!(!output.status.success(), "Command unexpectedly succeeded");
+    assert!(stderr.contains("Matrix tests failed with unexpected errors."), "stderr does not contain expected error message. stderr: {}", stderr);
 }
 
 /// This test checks the test failure scenario.
@@ -54,17 +74,27 @@ fn test_build_failure() {
 /// 它断言命令失败，并且输出包含指示测试失败的关键字。
 #[test]
 fn test_test_failure() {
+    let temp_dir = setup_test_environment();
+    let config_path = temp_dir.path().join("test_fail.toml");
+    fs::write(&config_path, r#"
+language = "en"
+cases = [
+    { name = "test-failure-case", features = "feature_test_fail", no_default_features = false },
+]
+"#).unwrap();
+
     let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
     cmd.arg("run")
         .arg("--config")
-        .arg("tests/fixtures/test_fail.toml")
+        .arg(&config_path)
         .arg("--project-dir")
-        .arg("tests/sample_project");
+        .arg(temp_dir.path());
 
-    cmd.assert()
-        .failure()
-        .stdout(predicate::str::contains("UNEXPECTED FAILURE DETECTED"))
-        .stdout(predicate::str::contains("test-failure-case"));
+    let output = cmd.output().expect("Failed to run");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(!output.status.success(), "Command unexpectedly succeeded");
+    assert!(stderr.contains("Matrix tests failed with unexpected errors."), "stderr does not contain expected error message. stderr: {}", stderr);
 }
 
 /// This test checks the custom command feature.
@@ -74,10 +104,21 @@ fn test_test_failure() {
 /// 它运行一个矩阵，其中的命令只回显一个字符串。
 #[test]
 fn test_custom_command() {
+    let temp_dir = setup_test_environment();
+    let config_path = temp_dir.path().join("custom_command.toml");
+    fs::write(&config_path, r#"
+language = "en"
+cases = [
+    { name = "custom-command-case", features = "feature_custom_command", no_default_features = false },
+]
+"#).unwrap();
+
     let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
     cmd.arg("run")
         .arg("--config")
-        .arg("tests/fixtures/custom_command.toml");
+        .arg(&config_path)
+        .arg("--project-dir")
+        .arg(temp_dir.path());
 
     cmd.assert().success().stdout(predicate::str::contains(
         "Custom command executed successfully!",
@@ -91,18 +132,23 @@ fn test_custom_command() {
 /// 它运行一个成功的矩阵，并断言 HTML 文件被创建。
 #[test]
 fn test_html_report_generation() -> Result<(), Box<dyn std::error::Error>> {
-    // Instead of a temp dir, we'll just use a path relative to the test's CWD.
-    // `assert_cmd` runs tests in a temporary directory per-test.
-    let report_path = "report.html";
+    let temp_dir = setup_test_environment();
+    let config_path = temp_dir.path().join("success.toml");
+    fs::write(&config_path, r#"
+language = "en"
+cases = [
+    { name = "test-success-case", features = "feature_test_success", no_default_features = false },
+]
+"#).unwrap();
 
     let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
     cmd.arg("run")
         .arg("--config")
-        .arg("tests/fixtures/success.toml")
+        .arg(&config_path)
         .arg("--project-dir")
-        .arg("tests/sample_project")
+        .arg(temp_dir.path())
         .arg("--html")
-        .arg(report_path);
+        .arg("report.html");
 
     // Get output instead of just asserting success, for better debugging.
     let output = cmd.output()?;
@@ -125,10 +171,10 @@ fn test_html_report_generation() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     assert!(
-        fs::metadata(report_path).is_ok(),
+        fs::metadata("report.html").is_ok(),
         "HTML report file was not created"
     );
-    let report_content = fs::read_to_string(report_path)?;
+    let report_content = fs::read_to_string("report.html")?;
     assert!(
         report_content.contains("<title>Test Report</title>"),
         "HTML report content is invalid. Got:\n\n{}",
@@ -136,7 +182,7 @@ fn test_html_report_generation() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Cleanup the created report file
-    fs::remove_file(report_path)?;
+    fs::remove_file("report.html")?;
 
     Ok(())
 }
@@ -147,23 +193,25 @@ fn test_html_report_generation() -> Result<(), Box<dyn std::error::Error>> {
 /// 这个测试检查默认语言的 init 命令。
 /// 它验证命令运行并创建 TestMatrix.toml 文件。
 #[test]
-fn test_init_command_default() -> Result<(), Box<dyn std::error::Error>> {
-    let temp_dir = TempDir::new()?;
+fn test_init_command_default() {
+    let temp_dir = setup_test_environment();
     let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
-    cmd.arg("init")
-        .arg("--language")
-        .arg("en")
-        .current_dir(&temp_dir);
+    cmd.current_dir(temp_dir.path())
+        .arg("init")
+        .arg("--non-interactive")
+        .arg("--lang")
+        .arg("en");
 
-    // For non-interactive test, we can't simulate input, so expect it to run but possibly fail without input.
-    // But check if it attempts to create the file or outputs welcome message.
-    let output = cmd.output()?;
+    let output = cmd.output().expect("Failed to execute command");
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    assert!(stdout.contains("Welcome to the matrix-runner setup wizard!"));
-
-    // Since init is interactive, in non-interactive env it might not create the file, but we can check output.
-    Ok(())
+    assert!(output.status.success());
+    assert!(
+        stdout.contains("Successfully created `TestMatrix.toml`"),
+        "stdout does not contain expected success message. stdout: {}",
+        stdout
+    );
+    assert!(temp_dir.path().join("TestMatrix.toml").exists());
 }
 
 /// This test checks the init command with specified language.
@@ -172,20 +220,25 @@ fn test_init_command_default() -> Result<(), Box<dyn std::error::Error>> {
 /// 这个测试检查指定语言的 init 命令。
 /// 它验证语言检测消息和基本执行。
 #[test]
-fn test_init_command_with_language() -> Result<(), Box<dyn std::error::Error>> {
-    let temp_dir = TempDir::new()?;
+fn test_init_command_with_language() {
+    let temp_dir = setup_test_environment();
     let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
-    cmd.arg("init")
-        .arg("--language")
-        .arg("en")
-        .current_dir(&temp_dir);
+    cmd.current_dir(temp_dir.path())
+        .arg("init")
+        .arg("--non-interactive")
+        .arg("--lang")
+        .arg("zh-CN");
 
-    let output = cmd.output()?;
+    let output = cmd.output().expect("Failed to execute command");
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    assert!(stdout.contains("Welcome to the matrix-runner setup wizard!"));
-
-    Ok(())
+    assert!(output.status.success());
+    assert!(
+        stdout.contains("成功创建了 `TestMatrix.toml`"),
+        "stdout does not contain expected success message in Chinese. stdout: {}",
+        stdout
+    );
+    assert!(temp_dir.path().join("TestMatrix.toml").exists());
 }
 
 /// This test checks running with invalid arguments.

@@ -1,31 +1,52 @@
+# zh-CN.toml
+
+# CLI (main.rs)
+cli_about = "一个强大的、由配置驱动的 Rust 项目测试执行器。"
+cli_lang = "设置显示语言（例如 'en', 'zh-CN'）。如果未指定，则自动检测。"
+
+# Subcommands
+cmd_run_about = "基于矩阵配置运行测试（默认命令）。"
+cmd_init_about = "启动一个交互式向导来创建一个新的 TestMatrix.toml 文件。"
+
+# Run command arguments
+arg_jobs = "并行任务的数量，默认为 (逻辑CPU / 2) + 1"
+arg_config = "测试矩阵配置文件的路径，相对于项目目录"
+arg_project_dir = "要测试的项目的路径"
+arg_total_runners = "用于拆分测试矩阵的并行执行器总数"
+arg_runner_index = "拆分测试矩阵时当前执行器的索引（从0开始）"
+arg_html = "用于写入HTML报告的路径。如果提供，将生成报告"
+
+# Init command arguments
+arg_init_language = "向导界面和生成的配置文件的语言。"
+
 # Common
 
 # main.rs
 shutdown_signal = "接收到 Ctrl+C，正在启动平稳关闭..."
 temp_dir_cleanup_info = "成功的测试将自动清理临时目录。"
 failure_artifact_info = "失败测试的产物将保留在 './target-errors' 目录中。"
-dep_fetch_start = "正在预取所有依赖项以避免锁竞争..."
-dep_fetch_success = "依赖预取成功。"
 project_root_detected = "检测到项目根目录于: {}"
 testing_crate = "正在测试的 Crate: {}"
 loading_test_matrix = "正在从 {} 加载测试矩阵"
-current_arch = "检测到当前CPU架构: {}"
 filtered_arch_cases = "根据当前CPU架构，已过滤掉 {} 个测试用例。剩余 {} 个用例。"
 running_as_split_runner = "作为执行器 {}/{} 运行 (分配了 {} 个用例)"
 running_as_single_runner = "作为单个执行器运行所有测试用例。"
 no_cases_to_run = "此执行器没有要运行的测试用例，成功退出。"
 current_os = "检测到当前操作系统: {}"
 flaky_cases_found = "发现 {} 个不稳定的测试用例。这些用例在当前操作系统上允许失败。"
-running_safe_cases = "\n正在运行 {} 个安全配置，最多 {} 个并行任务..."
-running_flaky_cases = "\n正在运行 {} 个不稳定配置，最多 {} 个并行任务..."
-fast_fail_triggered = "一个安全测试失败。正在触发快速失败并取消其他安全测试..."
 all_tests_passed = "所有测试成功通过！"
 test_timeout = "测试 '{}' 在 {} 秒后超时！"
 test_timeout_message = "测试因超时而失败。"
 timeout_failure = "超时"
 test_retrying = "测试 '{}' 失败。正在重试 ({}/{}) ..."
 test_passed_on_retry = "测试 '{}' 在重试 {} 次后通过。"
-test_failed_after_retries = "测试 '{}' 在重试 {} 次后仍然失败。"
+TestFailedAfterRetries = "测试 '{0}' 在重试 {1} 次后失败。"
+BuildFailed = "测试用例 '{0}' 构建失败。详情如下。"
+BuildFailedUnexpected = "为 '{0}' 构建时发生意外错误。"
+TestNoBinaries = "测试用例 '{0}' 没有产生可执行的二进制文件。"
+TestNoBinariesMessage = "成功构建后未找到任何测试二进制文件。这通常意味着该测试用例没有 `[[test]]` 或 `[[bin]]` 目标，或者它们被过滤掉了。"
+BuildLog = "构建日志"
+TestLog = "测试日志"
 
 # HTML Report
 html_report_title = "测试报告"
@@ -105,3 +126,11 @@ init_template_default_features = "稳定版 Rust 的默认功能"
 init_template_no_default_features = "无默认功能（`no_std` 设置）"
 init_template_all_features = "启用所有功能"
 init_template_custom_command = "自定义命令（例如用于 MIRI 或 wasm-pack）"
+
+ReportHeaderName = "名称"
+ReportHeaderResult = "结果"
+ReportHeaderTime = "时间"
+ReportHeaderFailure = "失败"
+ReportStatusPassed = "通过"
+ReportStatusFailed = "失败"
+ReportStatusSkipped = "跳过"
