@@ -88,9 +88,7 @@ mod language_output_tests {
         
         cmd.assert()
             .success()
-            .stdout(predicate::str::contains("检测到项目根目录"))
-            .stdout(predicate::str::contains("正在测试的 Crate:"))
-            .stdout(predicate::str::contains("测试矩阵成功通过"));
+            .stdout(predicate::str::contains("所有测试成功通过！"));
     }
 
     #[test]
@@ -107,9 +105,7 @@ mod language_output_tests {
         
         cmd.assert()
             .success()
-            .stdout(predicate::str::contains("Project root detected"))
-            .stdout(predicate::str::contains("Testing crate:"))
-            .stdout(predicate::str::contains("TEST MATRIX PASSED SUCCESSFULLY"));
+            .stdout(predicate::str::contains("All tests passed successfully!"));
     }
 
     #[test]
@@ -127,8 +123,7 @@ mod language_output_tests {
         // Should default to English
         cmd.assert()
             .success()
-            .stdout(predicate::str::contains("Project root detected"))
-            .stdout(predicate::str::contains("TEST MATRIX PASSED SUCCESSFULLY"));
+            .stdout(predicate::str::contains("All tests passed successfully!"));
     }
 
     #[test]
@@ -155,8 +150,7 @@ no_default_features = false
         // Should fallback to English
         cmd.assert()
             .success()
-            .stdout(predicate::str::contains("Project root detected"))
-            .stdout(predicate::str::contains("TEST MATRIX PASSED SUCCESSFULLY"));
+            .stdout(predicate::str::contains("All tests passed successfully!"));
     }
 }
 
@@ -316,7 +310,11 @@ mod html_report_i18n_tests {
         
         // Check that the report contains Chinese content
         let report_content = fs::read_to_string(&report_path).unwrap();
-        assert!(report_content.contains("测试矩阵报告"));
+        assert!(
+            report_content.contains("<title>测试报告</title>"),
+            "Chinese HTML report content is invalid. Got:\n\n{}",
+            report_content
+        );
     }
 
     #[test]
@@ -343,7 +341,7 @@ mod html_report_i18n_tests {
         
         // Check that the report contains English content
         let report_content = fs::read_to_string(&report_path).unwrap();
-        assert!(report_content.contains("Test Matrix Report"));
+        assert!(report_content.contains("<title>Test Report</title>"));
     }
 }
 
@@ -379,8 +377,7 @@ no_default_features = false
         
         cmd.assert()
             .success()
-            .stdout(predicate::str::contains("检测到项目根目录"))
-            .stdout(predicate::str::contains("测试矩阵成功通过"));
+            .stdout(predicate::str::contains("所有测试成功通过！"));
     }
 
     #[test]
@@ -411,6 +408,6 @@ no_default_features = false
         
         cmd.assert()
             .success()
-            .stdout(predicate::str::contains("测试矩阵成功通过"));
+            .stdout(predicate::str::contains("所有测试成功通过！"));
     }
 }

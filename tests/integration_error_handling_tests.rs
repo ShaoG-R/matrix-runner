@@ -322,7 +322,7 @@ no_default_features = false
 
         cmd.assert()
             .success()
-            .stdout(predicate::str::contains("TEST MATRIX PASSED SUCCESSFULLY"));
+            .stdout(predicate::str::contains("All tests passed successfully!"));
     }
 
     #[test]
@@ -353,7 +353,7 @@ no_default_features = false
 
         cmd.assert()
             .success()
-            .stdout(predicate::str::contains("测试矩阵成功通过"));
+            .stdout(predicate::str::contains("所有测试成功通过！"));
     }
 
     #[test]
@@ -379,7 +379,7 @@ no_default_features = false
 
         cmd.assert()
             .success()
-            .stdout(predicate::str::contains("TEST MATRIX PASSED SUCCESSFULLY"));
+            .stdout(predicate::str::contains("All tests passed successfully!"));
     }
 }
 

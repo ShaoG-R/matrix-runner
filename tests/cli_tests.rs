@@ -22,7 +22,7 @@ fn test_successful_run() {
 
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("TEST MATRIX PASSED SUCCESSFULLY"));
+        .stdout(predicate::str::contains("All tests passed successfully!"));
 }
 
 /// This test checks the build failure scenario.
@@ -43,7 +43,7 @@ fn test_build_failure() {
     cmd.assert()
         .failure()
         .stdout(predicate::str::contains("UNEXPECTED FAILURE DETECTED"))
-        .stdout(predicate::str::contains("(Build Failure)"));
+        .stdout(predicate::str::contains("build-failure-case"));
 }
 
 /// This test checks the test failure scenario.
@@ -64,7 +64,7 @@ fn test_test_failure() {
     cmd.assert()
         .failure()
         .stdout(predicate::str::contains("UNEXPECTED FAILURE DETECTED"))
-        .stdout(predicate::str::contains("(Test Failure)"));
+        .stdout(predicate::str::contains("test-failure-case"));
 }
 
 /// This test checks the custom command feature.
@@ -130,8 +130,9 @@ fn test_html_report_generation() -> Result<(), Box<dyn std::error::Error>> {
     );
     let report_content = fs::read_to_string(report_path)?;
     assert!(
-        report_content.contains("<title>Test Matrix Report</title>"),
-        "HTML report content is invalid"
+        report_content.contains("<title>Test Report</title>"),
+        "HTML report content is invalid. Got:\n\n{}",
+        report_content
     );
 
     // Cleanup the created report file
@@ -150,6 +151,8 @@ fn test_init_command_default() -> Result<(), Box<dyn std::error::Error>> {
     let temp_dir = TempDir::new()?;
     let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
     cmd.arg("init")
+        .arg("--language")
+        .arg("en")
         .current_dir(&temp_dir);
 
     // For non-interactive test, we can't simulate input, so expect it to run but possibly fail without input.

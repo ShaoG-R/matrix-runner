@@ -235,7 +235,7 @@ async fn run_test_case_inner(
             return Ok(TestResult::Failed {
                 case,
                 output,
-                reason: FailureReason::Test, // Or a new `CustomCommand` reason
+                reason: FailureReason::CustomCommand,
                 duration,
             });
         }

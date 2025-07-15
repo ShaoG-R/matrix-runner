@@ -45,25 +45,25 @@ fn create_slow_case_matrix(temp_dir: &TempDir) -> std::path::PathBuf {
 
 [[cases]]
 name = "slow-case-1"
-command = "sleep 2 && echo slow-case-1 completed"
+command = "powershell -Command \"Start-Sleep -Seconds 2; Write-Output 'slow-case-1 completed'\""
 features = ""
 no_default_features = false
 
 [[cases]]
 name = "slow-case-2"
-command = "sleep 3 && echo slow-case-2 completed"
+command = "powershell -Command \"Start-Sleep -Seconds 3; Write-Output 'slow-case-2 completed'\""
 features = ""
 no_default_features = false
 
 [[cases]]
 name = "slow-case-3"
-command = "sleep 2 && echo slow-case-3 completed"
+command = "powershell -Command \"Start-Sleep -Seconds 2; Write-Output 'slow-case-3 completed'\""
 features = ""
 no_default_features = false
 
 [[cases]]
 name = "slow-case-4"
-command = "sleep 3 && echo slow-case-4 completed"
+command = "powershell -Command \"Start-Sleep -Seconds 3; Write-Output 'slow-case-4 completed'\""
 features = ""
 no_default_features = false
 "#;
@@ -93,7 +93,7 @@ mod parallel_execution_tests {
         let start_time = Instant::now();
         cmd.assert()
             .success()
-            .stdout(predicate::str::contains("TEST MATRIX PASSED SUCCESSFULLY"));
+            .stdout(predicate::str::contains("All tests passed successfully!"));
         let duration = start_time.elapsed();
 
         // With parallel execution, it should complete reasonably quickly
@@ -120,7 +120,7 @@ mod parallel_execution_tests {
 
         cmd.assert()
             .success()
-            .stdout(predicate::str::contains("TEST MATRIX PASSED SUCCESSFULLY"));
+            .stdout(predicate::str::contains("All tests passed successfully!"));
     }
 
     #[test]
@@ -138,7 +138,7 @@ mod parallel_execution_tests {
 
         cmd.assert()
             .success()
-            .stdout(predicate::str::contains("TEST MATRIX PASSED SUCCESSFULLY"));
+            .stdout(predicate::str::contains("All tests passed successfully!"));
     }
 
     #[test]
@@ -159,7 +159,7 @@ mod parallel_execution_tests {
         // Should work
         cmd.assert()
             .success()
-            .stdout(predicate::str::contains("TEST MATRIX PASSED SUCCESSFULLY"));
+            .stdout(predicate::str::contains("All tests passed successfully!"));
     }
 
     #[test]
@@ -180,7 +180,7 @@ mod parallel_execution_tests {
         // Should still work without issues
         cmd.assert()
             .success()
-            .stdout(predicate::str::contains("TEST MATRIX PASSED SUCCESSFULLY"));
+            .stdout(predicate::str::contains("All tests passed successfully!"));
     }
 }
 
@@ -317,7 +317,6 @@ mod resource_management_tests {
         let temp_dir = TempDir::new().unwrap();
         let matrix_path = create_multi_case_matrix(&temp_dir, 4);
 
-        // Run with multiple jobs to ensure builds don't interfere
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
             .arg("--config")
@@ -325,10 +324,10 @@ mod resource_management_tests {
             .arg("--project-dir")
             .arg("tests/sample_project")
             .arg("--jobs")
-            .arg("3");
+            .arg("3"); // Use multiple jobs
 
         cmd.assert()
             .success()
-            .stdout(predicate::str::contains("TEST MATRIX PASSED SUCCESSFULLY"));
+            .stdout(predicate::str::contains("All tests passed successfully!"));
     }
 }

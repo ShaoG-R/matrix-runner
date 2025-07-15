@@ -21,6 +21,8 @@ mod test_case_tests {
             command: None,
             allow_failure: vec![],
             arch: vec![],
+            retries: None,
+            timeout_secs: None,
         };
 
         let toml_str = toml::to_string(&test_case).unwrap();
@@ -39,6 +41,8 @@ mod test_case_tests {
             command: Some("cargo test --release".to_string()),
             allow_failure: vec!["windows".to_string()],
             arch: vec!["x86_64".to_string(), "aarch64".to_string()],
+            retries: None,
+            timeout_secs: None,
         };
 
         let toml_str = toml::to_string(&test_case).unwrap();
@@ -66,6 +70,8 @@ mod test_case_tests {
         assert!(test_case.command.is_none());
         assert!(test_case.allow_failure.is_empty());
         assert!(test_case.arch.is_empty());
+        assert!(test_case.retries.is_none());
+        assert!(test_case.timeout_secs.is_none());
     }
 
     #[test]
@@ -87,6 +93,8 @@ mod test_case_tests {
         assert_eq!(test_case.command, Some("custom command".to_string()));
         assert_eq!(test_case.allow_failure, vec!["linux", "macos"]);
         assert_eq!(test_case.arch, vec!["x86_64"]);
+        assert!(test_case.retries.is_none());
+        assert!(test_case.timeout_secs.is_none());
     }
 
     #[test]
@@ -98,6 +106,8 @@ mod test_case_tests {
             command: Some("test command".to_string()),
             allow_failure: vec!["windows".to_string()],
             arch: vec!["x86_64".to_string()],
+            retries: None,
+            timeout_secs: None,
         };
 
         let cloned = original.clone();
@@ -108,6 +118,8 @@ mod test_case_tests {
         assert_eq!(original.command, cloned.command);
         assert_eq!(original.allow_failure, cloned.allow_failure);
         assert_eq!(original.arch, cloned.arch);
+        assert_eq!(original.retries, cloned.retries);
+        assert_eq!(original.timeout_secs, cloned.timeout_secs);
     }
 }
 
@@ -207,6 +219,8 @@ mod test_matrix_tests {
                     command: None,
                     allow_failure: vec![],
                     arch: vec![],
+                    retries: None,
+                    timeout_secs: None,
                 },
                 TestCase {
                     name: "test2".to_string(),
@@ -215,6 +229,8 @@ mod test_matrix_tests {
                     command: Some("custom command".to_string()),
                     allow_failure: vec!["linux".to_string()],
                     arch: vec!["x86_64".to_string()],
+                    retries: None,
+                    timeout_secs: None,
                 },
             ],
         };
@@ -252,6 +268,8 @@ mod test_matrix_tests {
                 command: Some("test command".to_string()),
                 allow_failure: vec!["windows".to_string(), "linux".to_string()],
                 arch: vec!["x86_64".to_string()],
+                retries: None,
+                timeout_secs: None,
             }],
         };
 
@@ -277,6 +295,8 @@ mod test_matrix_tests {
         assert_eq!(orig_case.command, deser_case.command);
         assert_eq!(orig_case.allow_failure, deser_case.allow_failure);
         assert_eq!(orig_case.arch, deser_case.arch);
+        assert_eq!(orig_case.retries, deser_case.retries);
+        assert_eq!(orig_case.timeout_secs, deser_case.timeout_secs);
     }
 
     #[test]

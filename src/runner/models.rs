@@ -19,6 +19,9 @@ pub enum FailureReason {
     /// The test case exceeded its configured timeout.
     /// 测试用例超出了其配置的超时时间。
     Timeout,
+    /// A custom command defined in the test case failed.
+    /// 测试用例中定义的自定义命令执行失败。
+    CustomCommand,
 }
 
 /// Represents the final result of a single test case execution.

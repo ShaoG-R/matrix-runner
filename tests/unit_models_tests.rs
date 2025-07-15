@@ -13,6 +13,7 @@ use matrix_runner::runner::models::{
 };
 use matrix_runner::runner::utils::create_build_dir;
 use std::path::PathBuf;
+use std::time::Duration;
 
 /// Initialize i18n for tests / 为测试初始化 i18n
 fn setup_i18n() {
@@ -28,6 +29,8 @@ fn create_test_case(name: &str) -> TestCase {
         command: None,
         allow_failure: vec![],
         arch: vec![],
+        retries: None,
+        timeout_secs: None,
     }
 }
 
@@ -41,12 +44,15 @@ mod test_result_tests {
         let result = TestResult::Passed {
             case: case.clone(),
             output: "Test passed successfully".to_string(),
+            duration: Duration::from_secs(1),
+            retries: 1,
         };
 
         match &result {
             TestResult::Passed {
                 case: result_case,
                 output,
+                ..
             } => {
                 assert_eq!(result_case.name, "passed-test");
                 assert_eq!(output, "Test passed successfully");
@@ -64,6 +70,7 @@ mod test_result_tests {
             case: case.clone(),
             output: "Test failed".to_string(),
             reason: FailureReason::Test,
+            duration: Duration::from_secs(1),
         };
 
         match &result {
@@ -71,6 +78,7 @@ mod test_result_tests {
                 case: result_case,
                 output,
                 reason,
+                ..
             } => {
                 assert_eq!(result_case.name, "failed-test");
                 assert_eq!(output, "Test failed");
@@ -92,6 +100,7 @@ mod test_result_tests {
             case: case.clone(),
             output: "Test failed but allowed".to_string(),
             reason: FailureReason::Build,
+            duration: Duration::from_secs(1),
         };
 
         // Should not be unexpected failure since current OS is in allow_failure list
@@ -118,6 +127,8 @@ mod test_result_tests {
         let original = TestResult::Passed {
             case: case.clone(),
             output: "Original output".to_string(),
+            duration: Duration::from_secs(5),
+            retries: 2,
         };
 
         let cloned = original.clone();
@@ -127,10 +138,12 @@ mod test_result_tests {
                 TestResult::Passed {
                     case: orig_case,
                     output: orig_output,
+                    ..
                 },
                 TestResult::Passed {
                     case: clone_case,
                     output: clone_output,
+                    ..
                 },
             ) => {
                 assert_eq!(orig_case.name, clone_case.name);
