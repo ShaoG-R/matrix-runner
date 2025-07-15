@@ -11,77 +11,8 @@ use predicates::prelude::*;
 use std::fs;
 use std::process::Command;
 use tempfile::TempDir;
-
-/// Helper function to create an invalid TOML configuration
-/// 创建无效TOML配置的辅助函数
-fn create_invalid_toml(temp_dir: &TempDir) -> std::path::PathBuf {
-    let matrix_path = temp_dir.path().join("invalid.toml");
-    let content = r#"
-language = "en"
-# Invalid TOML - missing closing bracket
-[[cases]
-name = "invalid-case"
-features = ""
-no_default_features = false
-"#;
-    fs::write(&matrix_path, content).unwrap();
-    matrix_path
-}
-
-/// Helper function to create a configuration with missing required fields
-/// 创建缺少必需字段的配置的辅助函数
-fn create_incomplete_config(temp_dir: &TempDir) -> std::path::PathBuf {
-    let matrix_path = temp_dir.path().join("incomplete.toml");
-    let content = r#"
-language = "en"
-
-[[cases]]
-name = "incomplete-case"
-# Missing required fields: features, no_default_features
-"#;
-    fs::write(&matrix_path, content).unwrap();
-    matrix_path
-}
-
-/// Helper function to create a configuration with invalid commands
-/// 创建包含无效命令的配置的辅助函数
-fn create_invalid_command_config(temp_dir: &TempDir) -> std::path::PathBuf {
-    let matrix_path = temp_dir.path().join("invalid_command.toml");
-    let content = r#"
-language = "en"
-
-[[cases]]
-name = "invalid-command-case"
-command = "this_command_definitely_does_not_exist_12345"
-features = ""
-no_default_features = false
-"#;
-    fs::write(&matrix_path, content).unwrap();
-    matrix_path
-}
-
-/// Helper function to create a configuration with architecture filtering
-/// 创建包含架构过滤的配置的辅助函数
-fn create_arch_filtered_config(temp_dir: &TempDir) -> std::path::PathBuf {
-    let matrix_path = temp_dir.path().join("arch_filtered.toml");
-    let content = r#"
-language = "en"
-
-[[cases]]
-name = "unsupported-arch-case"
-features = ""
-no_default_features = false
-arch = ["nonexistent_architecture"]
-
-[[cases]]
-name = "supported-arch-case"
-features = ""
-no_default_features = false
-arch = ["x86_64", "aarch64"]
-"#;
-    fs::write(&matrix_path, content).unwrap();
-    matrix_path
-}
+#[path = "common/mod.rs"] mod common;
+use common::{create_arch_filtered_config, create_incomplete_config, create_invalid_command_config, create_invalid_toml};
 
 #[cfg(test)]
 mod config_error_tests {
@@ -449,5 +380,68 @@ no_default_features = false
         cmd.assert()
             .success()
             .stdout(predicate::str::contains("TEST MATRIX PASSED SUCCESSFULLY"));
+    }
+}
+
+#[cfg(test)]
+mod runner_error_tests {
+    use super::*;
+
+    #[test]
+    fn test_invalid_runner_index() {
+        let temp_dir = TempDir::new().unwrap();
+        let matrix_path = temp_dir.path().join("valid.toml");
+        let content = r#"
+language = "en"
+
+[[cases]]
+name = "test-case"
+features = ""
+no_default_features = false
+"#;
+        fs::write(&matrix_path, content).unwrap();
+
+        let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
+        cmd.arg("run")
+            .arg("--config")
+            .arg(&matrix_path)
+            .arg("--project-dir")
+            .arg("tests/sample_project")
+            .arg("--total-runners")
+            .arg("2")
+            .arg("--runner-index")
+            .arg("2"); // Index equal to total - invalid
+
+        cmd.assert()
+            .failure()
+            .stderr(predicate::str::contains("--runner-index must be less than --total-runners."));
+    }
+
+    #[test]
+    fn test_inconsistent_runner_flags() {
+        let temp_dir = TempDir::new().unwrap();
+        let matrix_path = temp_dir.path().join("valid.toml");
+        let content = r#"
+language = "en"
+
+[[cases]]
+name = "test-case"
+features = ""
+no_default_features = false
+"#;
+        fs::write(&matrix_path, content).unwrap();
+
+        let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
+        cmd.arg("run")
+            .arg("--config")
+            .arg(&matrix_path)
+            .arg("--project-dir")
+            .arg("tests/sample_project")
+            .arg("--total-runners")
+            .arg("2"); // Missing --runner-index
+
+        cmd.assert()
+            .failure()
+            .stderr(predicate::str::contains("--total-runners and --runner-index must be provided together."));
     }
 }

@@ -45,25 +45,25 @@ fn create_slow_case_matrix(temp_dir: &TempDir) -> std::path::PathBuf {
 
 [[cases]]
 name = "slow-case-1"
-command = "echo slow-case-1"
+command = "sleep 2 && echo slow-case-1 completed"
 features = ""
 no_default_features = false
 
 [[cases]]
 name = "slow-case-2"
-command = "echo slow-case-2"
+command = "sleep 3 && echo slow-case-2 completed"
 features = ""
 no_default_features = false
 
 [[cases]]
 name = "slow-case-3"
-command = "echo slow-case-3"
+command = "sleep 2 && echo slow-case-3 completed"
 features = ""
 no_default_features = false
 
 [[cases]]
 name = "slow-case-4"
-command = "echo slow-case-4"
+command = "sleep 3 && echo slow-case-4 completed"
 features = ""
 no_default_features = false
 "#;

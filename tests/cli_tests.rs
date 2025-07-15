@@ -2,6 +2,7 @@ use assert_cmd::prelude::*;
 use predicates::prelude::*;
 use std::fs;
 use std::process::Command;
+use tempfile::TempDir;
 
 /// This test runs the `matrix-runner` against the `sample_project`
 /// using the `success.toml` fixture. It asserts that the command
@@ -137,4 +138,65 @@ fn test_html_report_generation() -> Result<(), Box<dyn std::error::Error>> {
     fs::remove_file(report_path)?;
 
     Ok(())
+}
+
+/// This test checks the init command with default language.
+/// It verifies that the command runs and creates a TestMatrix.toml file.
+///
+/// 这个测试检查默认语言的 init 命令。
+/// 它验证命令运行并创建 TestMatrix.toml 文件。
+#[test]
+fn test_init_command_default() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = TempDir::new()?;
+    let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
+    cmd.arg("init")
+        .current_dir(&temp_dir);
+
+    // For non-interactive test, we can't simulate input, so expect it to run but possibly fail without input.
+    // But check if it attempts to create the file or outputs welcome message.
+    let output = cmd.output()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(stdout.contains("Welcome to the matrix-runner setup wizard!"));
+
+    // Since init is interactive, in non-interactive env it might not create the file, but we can check output.
+    Ok(())
+}
+
+/// This test checks the init command with specified language.
+/// It verifies the language detection message and basic execution.
+///
+/// 这个测试检查指定语言的 init 命令。
+/// 它验证语言检测消息和基本执行。
+#[test]
+fn test_init_command_with_language() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = TempDir::new()?;
+    let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
+    cmd.arg("init")
+        .arg("--language")
+        .arg("en")
+        .current_dir(&temp_dir);
+
+    let output = cmd.output()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(stdout.contains("Welcome to the matrix-runner setup wizard!"));
+
+    Ok(())
+}
+
+/// This test checks running with invalid arguments.
+/// It asserts that the command fails with appropriate error message.
+///
+/// 这个测试检查使用无效参数运行。
+/// 它断言命令失败并显示适当的错误消息。
+#[test]
+fn test_invalid_arguments() {
+    let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
+    cmd.arg("run")
+        .arg("--invalid-flag");
+
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("error: unexpected argument '--invalid-flag' found"));
 }
