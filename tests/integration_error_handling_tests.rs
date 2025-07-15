@@ -11,8 +11,12 @@ use predicates::prelude::*;
 use std::fs;
 use std::process::Command;
 use tempfile::TempDir;
-#[path = "common/mod.rs"] mod common;
-use common::{create_arch_filtered_config, create_incomplete_config, create_invalid_command_config, create_invalid_toml};
+#[path = "common/mod.rs"]
+mod common;
+use common::{
+    create_arch_filtered_config, create_incomplete_config, create_invalid_command_config,
+    create_invalid_toml,
+};
 
 #[cfg(test)]
 mod config_error_tests {
@@ -27,9 +31,9 @@ mod config_error_tests {
             .arg("--project-dir")
             .arg("tests/sample_project");
 
-        cmd.assert()
-            .failure()
-            .stderr(predicate::str::contains("Failed to find or read config file"));
+        cmd.assert().failure().stderr(predicate::str::contains(
+            "Failed to find or read config file",
+        ));
     }
 
     #[test]
@@ -412,9 +416,9 @@ no_default_features = false
             .arg("--runner-index")
             .arg("2"); // Index equal to total - invalid
 
-        cmd.assert()
-            .failure()
-            .stderr(predicate::str::contains("--runner-index must be less than --total-runners."));
+        cmd.assert().failure().stderr(predicate::str::contains(
+            "--runner-index must be less than --total-runners.",
+        ));
     }
 
     #[test]
@@ -440,8 +444,8 @@ no_default_features = false
             .arg("--total-runners")
             .arg("2"); // Missing --runner-index
 
-        cmd.assert()
-            .failure()
-            .stderr(predicate::str::contains("--total-runners and --runner-index must be provided together."));
+        cmd.assert().failure().stderr(predicate::str::contains(
+            "--total-runners and --runner-index must be provided together.",
+        ));
     }
 }

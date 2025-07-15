@@ -26,7 +26,7 @@ use crate::runner::i18n::{self, I18nKey};
 use crate::runner::models::{FailureReason, TestResult};
 use anyhow::{Context, Result};
 use colored::*;
-use maud::{html, PreEscaped, DOCTYPE};
+use maud::{DOCTYPE, PreEscaped, html};
 use std::fs;
 use std::path::Path;
 
@@ -76,13 +76,20 @@ pub fn generate_html_report(results: &[TestResult], output_path: &Path) -> Resul
         .count();
     let timeout_count = results
         .iter()
-        .filter(|r| matches!(r, TestResult::Failed { reason: FailureReason::Timeout, .. }))
+        .filter(|r| {
+            matches!(
+                r,
+                TestResult::Failed {
+                    reason: FailureReason::Timeout,
+                    ..
+                }
+            )
+        })
         .count();
     let total_unexpected_failures = results.iter().filter(|r| r.is_unexpected_failure()).count();
     let failed_count = total_unexpected_failures - timeout_count;
     let total_count = results.len();
-    let total_duration: std::time::Duration =
-        results.iter().filter_map(|r| r.get_duration()).sum();
+    let total_duration: std::time::Duration = results.iter().filter_map(|r| r.get_duration()).sum();
 
     let formatted_time = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 
@@ -192,12 +199,8 @@ pub fn generate_html_report(results: &[TestResult], output_path: &Path) -> Resul
     }
     .into_string();
 
-    fs::write(output_path, markup).with_context(|| {
-        i18n::t_fmt(
-            I18nKey::HtmlReportWriteFailed,
-            &[&output_path.display()],
-        )
-    })
+    fs::write(output_path, markup)
+        .with_context(|| i18n::t_fmt(I18nKey::HtmlReportWriteFailed, &[&output_path.display()]))
 }
 
 /// Prints a formatted summary of test results to the console.

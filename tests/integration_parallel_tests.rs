@@ -205,10 +205,9 @@ mod runner_splitting_tests {
             .arg("--runner-index")
             .arg("0");
 
-        cmd1.assert()
-            .success()
-            .stdout(predicate::str::contains("Running as runner")
-                .and(predicate::str::contains("/2")));
+        cmd1.assert().success().stdout(
+            predicate::str::contains("Running as runner").and(predicate::str::contains("/2")),
+        );
 
         // Test runner 1 of 2 (should get second half of cases)
         let mut cmd2 = Command::cargo_bin("matrix-runner").unwrap();
@@ -222,10 +221,9 @@ mod runner_splitting_tests {
             .arg("--runner-index")
             .arg("1");
 
-        cmd2.assert()
-            .success()
-            .stdout(predicate::str::contains("Running as runner")
-                .and(predicate::str::contains("/2")));
+        cmd2.assert().success().stdout(
+            predicate::str::contains("Running as runner").and(predicate::str::contains("/2")),
+        );
     }
 
     #[test]

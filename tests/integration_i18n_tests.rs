@@ -8,9 +8,9 @@
 
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
+use std::fs;
 use std::process::Command;
 use tempfile::TempDir;
-use std::fs;
 
 /// Helper function to create a Chinese language test matrix
 /// 创建中文语言测试矩阵的辅助函数
@@ -78,14 +78,14 @@ mod language_output_tests {
     fn test_chinese_output() {
         let temp_dir = TempDir::new().unwrap();
         let matrix_path = create_chinese_matrix(&temp_dir);
-        
+
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
             .arg("tests/sample_project");
-        
+
         cmd.assert()
             .success()
             .stdout(predicate::str::contains("所有测试成功通过！"));
@@ -95,14 +95,14 @@ mod language_output_tests {
     fn test_english_output() {
         let temp_dir = TempDir::new().unwrap();
         let matrix_path = create_english_matrix(&temp_dir);
-        
+
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
             .arg("tests/sample_project");
-        
+
         cmd.assert()
             .success()
             .stdout(predicate::str::contains("All tests passed successfully!"));
@@ -112,14 +112,14 @@ mod language_output_tests {
     fn test_default_language_fallback() {
         let temp_dir = TempDir::new().unwrap();
         let matrix_path = create_default_language_matrix(&temp_dir);
-        
+
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
             .arg("tests/sample_project");
-        
+
         // Should default to English
         cmd.assert()
             .success()
@@ -139,14 +139,14 @@ features = ""
 no_default_features = false
 "#;
         fs::write(&matrix_path, content).unwrap();
-        
+
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
             .arg("tests/sample_project");
-        
+
         // Should fallback to English
         cmd.assert()
             .success()
@@ -197,8 +197,7 @@ mod init_command_i18n_tests {
         let temp_dir = TempDir::new().unwrap();
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
-        cmd.arg("init")
-            .current_dir(&temp_dir);
+        cmd.arg("init").current_dir(&temp_dir);
 
         // For now, just test that the command starts without crashing
         let output = cmd.output().unwrap();
@@ -242,14 +241,14 @@ features = "feature_build_fail"
 no_default_features = false
 "#;
         fs::write(&matrix_path, content).unwrap();
-        
+
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
             .arg("tests/sample_project");
-        
+
         cmd.assert()
             .failure()
             .stdout(predicate::str::contains("检测到意外失败"));
@@ -268,14 +267,14 @@ features = "feature_build_fail"
 no_default_features = false
 "#;
         fs::write(&matrix_path, content).unwrap();
-        
+
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
             .arg("tests/sample_project");
-        
+
         cmd.assert()
             .failure()
             .stdout(predicate::str::contains("UNEXPECTED FAILURE DETECTED"));
@@ -291,7 +290,7 @@ mod html_report_i18n_tests {
         let temp_dir = TempDir::new().unwrap();
         let matrix_path = create_chinese_matrix(&temp_dir);
         let report_path = temp_dir.path().join("chinese_report.html");
-        
+
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
             .arg("--config")
@@ -300,14 +299,14 @@ mod html_report_i18n_tests {
             .arg("tests/sample_project")
             .arg("--html")
             .arg(&report_path);
-        
+
         cmd.assert()
             .success()
             .stdout(predicate::str::contains("Generating HTML report"));
-        
+
         // Verify the HTML report was created
         assert!(report_path.exists());
-        
+
         // Check that the report contains Chinese content
         let report_content = fs::read_to_string(&report_path).unwrap();
         assert!(
@@ -322,7 +321,7 @@ mod html_report_i18n_tests {
         let temp_dir = TempDir::new().unwrap();
         let matrix_path = create_english_matrix(&temp_dir);
         let report_path = temp_dir.path().join("english_report.html");
-        
+
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
             .arg("--config")
@@ -331,14 +330,14 @@ mod html_report_i18n_tests {
             .arg("tests/sample_project")
             .arg("--html")
             .arg(&report_path);
-        
+
         cmd.assert()
             .success()
             .stdout(predicate::str::contains("Generating HTML report"));
-        
+
         // Verify the HTML report was created
         assert!(report_path.exists());
-        
+
         // Check that the report contains English content
         let report_content = fs::read_to_string(&report_path).unwrap();
         assert!(report_content.contains("<title>Test Report</title>"));
@@ -367,14 +366,14 @@ features = ""
 no_default_features = false
 "#;
         fs::write(&matrix_path, content).unwrap();
-        
+
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
             .arg("tests/sample_project");
-        
+
         cmd.assert()
             .success()
             .stdout(predicate::str::contains("所有测试成功通过！"));
@@ -398,14 +397,14 @@ features = ""
 no_default_features = false
 "#;
         fs::write(&matrix_path, content).unwrap();
-        
+
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
             .arg("tests/sample_project");
-        
+
         cmd.assert()
             .success()
             .stdout(predicate::str::contains("所有测试成功通过！"));

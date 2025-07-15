@@ -68,4 +68,4 @@ arch = ["x86_64", "aarch64"]
 "#;
     fs::write(&matrix_path, content).unwrap();
     matrix_path
-} 
+}

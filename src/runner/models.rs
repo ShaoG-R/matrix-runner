@@ -98,10 +98,7 @@ impl TestResult {
                 if *reason == FailureReason::Timeout {
                     return true;
                 }
-                !case
-                    .allow_failure
-                    .iter()
-                    .any(|s| s == std::env::consts::OS)
+                !case.allow_failure.iter().any(|s| s == std::env::consts::OS)
             }
             _ => false,
         }
@@ -125,11 +122,7 @@ impl TestResult {
             TestResult::Failed { case, reason, .. } => {
                 if *reason == FailureReason::Timeout {
                     "Timeout"
-                } else if case
-                    .allow_failure
-                    .iter()
-                    .any(|s| s == std::env::consts::OS)
-                {
+                } else if case.allow_failure.iter().any(|s| s == std::env::consts::OS) {
                     "Allowed Failure"
                 } else {
                     "Failed"

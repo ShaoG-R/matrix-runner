@@ -1,6 +1,6 @@
-use criterion::{criterion_group, criterion_main, Criterion};
-use matrix_runner::runner::execution::run_test_case;
+use criterion::{Criterion, criterion_group, criterion_main};
 use matrix_runner::runner::config::TestCase;
+use matrix_runner::runner::execution::run_test_case;
 use std::path::PathBuf;
 use tokio::runtime::Runtime;
 
@@ -27,4 +27,4 @@ fn bench_run_test_case(c: &mut Criterion) {
 }
 
 criterion_group!(benches, bench_run_test_case);
-criterion_main!(benches); 
+criterion_main!(benches);

@@ -196,10 +196,9 @@ fn test_init_command_with_language() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_invalid_arguments() {
     let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
-    cmd.arg("run")
-        .arg("--invalid-flag");
+    cmd.arg("run").arg("--invalid-flag");
 
-    cmd.assert()
-        .failure()
-        .stderr(predicate::str::contains("error: unexpected argument '--invalid-flag' found"));
+    cmd.assert().failure().stderr(predicate::str::contains(
+        "error: unexpected argument '--invalid-flag' found",
+    ));
 }

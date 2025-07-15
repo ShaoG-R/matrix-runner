@@ -82,8 +82,7 @@ pub async fn run_test_case(
                 Err(_) => {
                     println!(
                         "{}",
-                        i18n::t_fmt(I18nKey::TestTimeout, &[&case_name, &duration.as_secs()])
-                            .red()
+                        i18n::t_fmt(I18nKey::TestTimeout, &[&case_name, &duration.as_secs()]).red()
                     );
                     Ok(TestResult::Failed {
                         case: case.clone(),
@@ -114,11 +113,8 @@ pub async fn run_test_case(
                 if attempt > 1 {
                     println!(
                         "{}",
-                        i18n::t_fmt(
-                            I18nKey::TestPassedOnRetry,
-                            &[&case_name, &(attempt - 1)]
-                        )
-                        .green()
+                        i18n::t_fmt(I18nKey::TestPassedOnRetry, &[&case_name, &(attempt - 1)])
+                            .green()
                     );
                 }
                 return Ok(final_result);

@@ -5,8 +5,8 @@
 
 #[cfg(test)]
 mod tests {
-    use loom::sync::atomic::{AtomicUsize, Ordering};
     use loom::sync::Arc;
+    use loom::sync::atomic::{AtomicUsize, Ordering};
     use loom::thread;
     use tokio_util::sync::CancellationToken;
 
@@ -83,4 +83,4 @@ mod tests {
 
         handle.join().unwrap();
     }
-} 
+}
