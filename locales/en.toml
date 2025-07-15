@@ -1,7 +1,3 @@
-# Common
-build_failure = "Build Failure"
-test_failure = "Test Failure"
-
 # main.rs
 shutdown_signal = "Ctrl+C received, initiating graceful shutdown..."
 temp_dir_cleanup_info = "Temporary directories will be auto-cleaned for successful tests."
@@ -22,6 +18,31 @@ running_safe_cases = "\nRunning {} safe configurations with up to {} parallel jo
 running_flaky_cases = "\nRunning {} flaky configurations with up to {} parallel jobs..."
 fast_fail_triggered = "A safe test failed. Triggering fast-fail and cancelling other safe tests..."
 all_tests_passed = "All tests passed successfully!"
+test_timeout = "Test '{}' timed out after {} seconds!"
+test_timeout_message = "Test failed due to timeout."
+timeout_failure = "Timeout"
+test_retrying = "Test '{}' failed. Retrying ({}/{})..."
+test_passed_on_retry = "Test '{}' passed after {} retries."
+test_failed_after_retries = "Test '{}' failed after {} retries."
+
+# HTML Report
+html_report_title = "Test Report"
+html_report_generated_at = "Generated at"
+html_report_summary = "Summary"
+html_report_total = "Total"
+html_report_passed = "Passed"
+html_report_failed = "Failed"
+html_report_allowed_failures = "Allowed Failures"
+html_report_skipped = "Skipped"
+html_report_total_duration = "Total Duration"
+html_report_status = "Status"
+html_report_name = "Name"
+html_report_features = "Features"
+html_report_duration = "Duration"
+html_report_retries = "Retries"
+html_report_output = "Output"
+html_report_show_output = "Show Output"
+html_report_write_failed = "Failed to write HTML report to '{}'"
 
 # Panics in main.rs (it's good practice to have them, even if panics aren't usually translated)
 project_dir_not_found = "Project directory not found at '{}'"
@@ -36,15 +57,6 @@ runner_flags_inconsistent = "--total-runners and --runner-index must be provided
 # reporting.rs
 unexpected_failure_banner = "UNEXPECTED FAILURE DETECTED"
 failure_details_for = "  Failure details for: {}"
-final_summary_banner = "==================== FINAL SUMMARY ===================="
-summary_successful_tests = "--- Successful Tests ---"
-summary_allowed_failures = "--- Allowed Failures ---"
-summary_failed_as_expected = "{} (failed as expected on {})"
-summary_skipped_tests = "--- Skipped Tests ---"
-summary_skipped_count = "{} test(s) were skipped."
-summary_unexpected_failures = "--- Unexpected Failures ---"
-overall_failure = "TEST MATRIX FAILED"
-overall_success = "TEST MATRIX PASSED SUCCESSFULLY"
 
 # command.rs
 compiler_error_parse_failed = "Could not parse specific compiler errors. Raw output snippet:"
@@ -85,19 +97,6 @@ init_write_failed = "Failed to write to {}"
 init_cargo_toml_not_found = "Could not find or read Cargo.toml."
 init_cargo_toml_parse_failed = "Failed to parse Cargo.toml."
 init_user_confirmation_failed = "Failed to get user confirmation."
-
-# HTML report generation
-html_report_title = "Test Matrix Report"
-html_report_generated_on = "Generated on: {}"
-html_report_passed = "Passed"
-html_report_failed = "Failed"
-html_report_allowed_failures = "Allowed Failures"
-html_report_skipped = "Skipped"
-html_report_total = "Total"
-html_report_name_column = "Name"
-html_report_status_column = "Status"
-html_report_output_column = "Output"
-html_report_show_hide = "Show/Hide"
 
 # Test case templates for init wizard
 init_template_default_features = "Default features on stable Rust"

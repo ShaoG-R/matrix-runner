@@ -13,6 +13,8 @@ fn bench_run_test_case(c: &mut Criterion) {
         command: Some("echo bench".to_string()),
         allow_failure: vec![],
         arch: vec![],
+        timeout_secs: Some(10),
+        retries: None,
     };
     let project_root = PathBuf::from(".");
     let crate_name = "bench_crate".to_string();

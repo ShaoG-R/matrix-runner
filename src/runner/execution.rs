@@ -3,7 +3,7 @@ use colored::*;
 use std::fs;
 use std::path::PathBuf;
 
-use crate::runner::command::spawn_and_capture;
+use crate::runner::command::{format_build_error_output, spawn_and_capture};
 use crate::runner::config::TestCase;
 use crate::runner::i18n;
 use crate::runner::i18n::I18nKey;
@@ -40,6 +40,130 @@ use crate::runner::utils::{copy_dir_all, create_build_dir};
 /// 一个 `Result`，包含成功的 `TestResult` 或错误的 `TestResult`。
 /// `Err` 变体用于向调用者发信号表示失败，调用者可以据此决定是否停止其他并行测试。
 pub async fn run_test_case(
+    case: TestCase,
+    project_root: &PathBuf,
+    crate_name: &str,
+) -> Result<TestResult> {
+    let max_attempts = 1 + case.retries.unwrap_or(0);
+    let mut last_result = Err(anyhow::anyhow!("Test case was not run."));
+
+    for attempt in 1..=max_attempts {
+        let case_name = case.name.clone();
+        let timeout = case.timeout_secs.map(std::time::Duration::from_secs);
+
+        let execution_future = run_test_case_inner(case.clone(), project_root, crate_name);
+
+        let result = if let Some(duration) = timeout {
+            match tokio::time::timeout(duration, execution_future).await {
+                Ok(res) => res,
+                Err(_) => {
+                    println!(
+                        "{}",
+                        i18n::t_fmt(I18nKey::TestTimeout, &[&case_name, &duration.as_secs()])
+                            .red()
+                    );
+                    Ok(TestResult::Failed {
+                        case: case.clone(),
+                        output: i18n::t(I18nKey::TestTimeoutMessage),
+                        reason: FailureReason::Timeout,
+                        duration,
+                    })
+                }
+            }
+        } else {
+            execution_future.await
+        };
+
+        match result {
+            Ok(TestResult::Passed {
+                case,
+                output,
+                duration,
+                ..
+            }) => {
+                let final_result = TestResult::Passed {
+                    case: case.clone(),
+                    output,
+                    duration,
+                    retries: attempt as u8,
+                };
+
+                if attempt > 1 {
+                    println!(
+                        "{}",
+                        i18n::t_fmt(
+                            I18nKey::TestPassedOnRetry,
+                            &[&case_name, &(attempt - 1)]
+                        )
+                        .green()
+                    );
+                }
+                return Ok(final_result);
+            }
+            Ok(TestResult::Failed {
+                reason,
+                output,
+                duration,
+                ..
+            }) => {
+                // Do not retry on timeout
+                if reason == FailureReason::Timeout {
+                    return Ok(TestResult::Failed {
+                        case: case.clone(),
+                        reason,
+                        output,
+                        duration,
+                    });
+                }
+
+                if attempt < max_attempts {
+                    println!(
+                        "{}",
+                        i18n::t_fmt(
+                            I18nKey::TestRetrying,
+                            &[&case_name, &attempt, &max_attempts]
+                        )
+                        .yellow()
+                    );
+                } else {
+                    println!(
+                        "{}",
+                        i18n::t_fmt(
+                            I18nKey::TestFailedAfterRetries,
+                            &[&case_name, &case.retries.unwrap_or(0)]
+                        )
+                        .red()
+                        .bold()
+                    );
+                }
+                last_result = Ok(TestResult::Failed {
+                    case: case.clone(),
+                    reason,
+                    output,
+                    duration,
+                });
+            }
+            Ok(res) => return Ok(res), // For Skipped
+            Err(e) => {
+                last_result = Err(e);
+                break;
+            }
+        }
+    }
+
+    // Handle the final result after all retries are exhausted.
+    match last_result {
+        Ok(final_result) => Ok(final_result),
+        Err(e) => {
+            // If the loop terminated due to a critical error (e.g., in shellexpand),
+            // wrap it in a generic TestResult::Skipped or another appropriate error type.
+            eprintln!("A critical error occurred during test execution: {}", e);
+            Ok(TestResult::Skipped)
+        }
+    }
+}
+
+async fn run_test_case_inner(
     case: TestCase,
     project_root: &PathBuf,
     crate_name: &str,
@@ -91,7 +215,12 @@ pub async fn run_test_case(
                 )
                 .green()
             );
-            return Ok(TestResult::Passed { case, output });
+            return Ok(TestResult::Passed {
+                case,
+                output,
+                duration,
+                retries: 1, // Placeholder, will be adjusted by the caller loop
+            });
         } else {
             println!(
                 "{}",
@@ -107,18 +236,24 @@ pub async fn run_test_case(
                 case,
                 output,
                 reason: FailureReason::Test, // Or a new `CustomCommand` reason
+                duration,
             });
         }
     }
 
     // --- Default flow (no custom command) ---
+    let build_start_time = std::time::Instant::now();
     let built_test = match build_test_case(case.clone(), project_root, crate_name).await {
         Ok(built_test) => built_test,
         Err(e) => {
+            let build_duration = build_start_time.elapsed();
+            // Pre-format the build error here so the data model is clean.
+            let formatted_error = format_build_error_output(&e.to_string());
             return Ok(TestResult::Failed {
                 case,
-                output: e.to_string(),
+                output: formatted_error,
                 reason: FailureReason::Build,
+                duration: build_duration,
             });
         }
     };
@@ -255,7 +390,7 @@ async fn build_test_case(
 async fn run_built_test(built_test: BuiltTest, project_root: &PathBuf) -> Result<TestResult> {
     let case = built_test.case;
     let executable = built_test.executable;
-    let _build_ctx = built_test.build_ctx; // Transferred ownership for cleanup
+    let build_ctx = built_test.build_ctx; // Transferred ownership for cleanup
 
     let start_time = std::time::Instant::now();
     println!(
@@ -280,7 +415,12 @@ async fn run_built_test(built_test: BuiltTest, project_root: &PathBuf) -> Result
             )
             .green()
         );
-        Ok(TestResult::Passed { case, output })
+        Ok(TestResult::Passed {
+            case,
+            output,
+            duration,
+            retries: 1, // Placeholder, will be adjusted by the caller loop
+        })
     } else {
         println!(
             "{}",
@@ -303,7 +443,7 @@ async fn run_built_test(built_test: BuiltTest, project_root: &PathBuf) -> Result
                 "{}",
                 i18n::t_fmt(I18nKey::PreservingArtifacts, &[&error_dir_path.display()]).yellow()
             );
-            copy_dir_all(&_build_ctx.target_path, &error_dir_path).unwrap_or_else(|e| {
+            copy_dir_all(&build_ctx.target_path, &error_dir_path).unwrap_or_else(|e| {
                 eprintln!(
                     "{}",
                     i18n::t_fmt(I18nKey::CopyArtifactsFailed, &[&case.name, &e.to_string()])
@@ -315,6 +455,7 @@ async fn run_built_test(built_test: BuiltTest, project_root: &PathBuf) -> Result
             case,
             output,
             reason: FailureReason::Test,
+            duration,
         })
     }
 }

@@ -21,6 +21,20 @@ pub struct TestCase {
     /// 则会构建一个默认的 `cargo test` 命令。
     #[serde(default)]
     pub command: Option<String>,
+    /// An optional timeout in seconds for the test case. If the test runs longer
+    /// than this, it will be marked as a timeout failure.
+    /// 测试用例的可选超时时间（秒）。如果测试运行时间超过此值，
+    /// 它将被标记为超时失败。
+    #[serde(default)]
+    pub timeout_secs: Option<u64>,
+    /// The number of times to retry a failed test case before marking it as failed.
+    /// This is useful for flaky tests. Retries are only attempted on `Test` or `Build` failures,
+    /// not on `Timeout` failures.
+    /// 在将失败的测试用例标记为最终失败之前重试的次数。
+    /// 这对于不稳定的测试很有用。仅对 `Test` 或 `Build` 类型的失败进行重试，
+    /// 对 `Timeout` 失败则不重试。
+    #[serde(default)]
+    pub retries: Option<u8>,
     /// A list of operating systems (e.g., "windows", "linux") on which this
     /// test case is allowed to fail without causing the overall run to fail.
     /// 一个操作系统列表（例如 "windows", "linux"），在此列表中的系统上，

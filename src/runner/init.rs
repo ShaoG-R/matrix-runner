@@ -287,6 +287,8 @@ fn prompt_for_cases(theme: &ColorfulTheme) -> Result<Vec<TestCase>> {
             command: None,
             allow_failure: vec![],
             arch: vec![],
+            timeout_secs: Some(10),
+            retries: None,
         });
     }
 
@@ -303,6 +305,8 @@ fn prompt_for_cases(theme: &ColorfulTheme) -> Result<Vec<TestCase>> {
             command: None,
             allow_failure: vec![],
             arch: vec![],
+            timeout_secs: Some(10),
+            retries: None,
         });
     }
 
@@ -318,6 +322,8 @@ fn prompt_for_cases(theme: &ColorfulTheme) -> Result<Vec<TestCase>> {
             command: None,
             allow_failure: vec![],
             arch: vec![],
+            timeout_secs: Some(10),
+            retries: None,
         });
     }
 
@@ -335,6 +341,8 @@ fn prompt_for_cases(theme: &ColorfulTheme) -> Result<Vec<TestCase>> {
             command: Some(cmd_input),
             allow_failure: vec![],
             arch: vec![],
+            timeout_secs: Some(10),
+            retries: None,
         });
     }
 
