@@ -14,8 +14,7 @@ use tempfile::TempDir;
 #[path = "common/mod.rs"]
 mod common;
 use common::{
-    create_arch_filtered_config, create_incomplete_config, create_invalid_command_config,
-    create_invalid_toml,
+    create_incomplete_config, create_invalid_toml,
 };
 
 #[cfg(test)]
