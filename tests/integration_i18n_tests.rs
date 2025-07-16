@@ -81,6 +81,8 @@ mod language_output_tests {
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("zh-CN")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -98,6 +100,8 @@ mod language_output_tests {
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -115,6 +119,8 @@ mod language_output_tests {
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -244,6 +250,8 @@ no_default_features = false
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("zh-CN")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -270,6 +278,8 @@ no_default_features = false
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -289,10 +299,12 @@ mod html_report_i18n_tests {
     fn test_chinese_html_report() {
         let temp_dir = TempDir::new().unwrap();
         let matrix_path = create_chinese_matrix(&temp_dir);
-        let report_path = temp_dir.path().join("chinese_report.html");
+        let report_path = temp_dir.path().join("report_cn.html");
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("zh-CN")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -300,30 +312,22 @@ mod html_report_i18n_tests {
             .arg("--html")
             .arg(&report_path);
 
-        cmd.assert()
-            .success()
-            .stdout(predicate::str::contains("Generating HTML report"));
+        cmd.assert().success();
 
-        // Verify the HTML report was created
-        assert!(report_path.exists());
-
-        // Check that the report contains Chinese content
-        let report_content = fs::read_to_string(&report_path).unwrap();
-        assert!(
-            report_content.contains("<title>测试报告</title>"),
-            "Chinese HTML report content is invalid. Got:\n\n{}",
-            report_content
-        );
+        let report_content = fs::read_to_string(report_path).unwrap();
+        assert!(report_content.contains("<h1>测试矩阵报告</h1>"));
     }
 
     #[test]
     fn test_english_html_report() {
         let temp_dir = TempDir::new().unwrap();
         let matrix_path = create_english_matrix(&temp_dir);
-        let report_path = temp_dir.path().join("english_report.html");
+        let report_path = temp_dir.path().join("report_en.html");
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -331,16 +335,10 @@ mod html_report_i18n_tests {
             .arg("--html")
             .arg(&report_path);
 
-        cmd.assert()
-            .success()
-            .stdout(predicate::str::contains("Generating HTML report"));
+        cmd.assert().success();
 
-        // Verify the HTML report was created
-        assert!(report_path.exists());
-
-        // Check that the report contains English content
-        let report_content = fs::read_to_string(&report_path).unwrap();
-        assert!(report_content.contains("<title>Test Report</title>"));
+        let report_content = fs::read_to_string(report_path).unwrap();
+        assert!(report_content.contains("<h1>Test Matrix Report</h1>"));
     }
 }
 

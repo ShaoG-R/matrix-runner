@@ -866,6 +866,7 @@ dependencies = [
  "dialoguer",
  "fs_extra",
  "futures",
+ "lazy_static",
  "loom",
  "maud",
  "num_cpus",

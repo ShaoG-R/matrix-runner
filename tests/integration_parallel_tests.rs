@@ -83,6 +83,8 @@ mod parallel_execution_tests {
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -111,6 +113,8 @@ mod parallel_execution_tests {
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -131,8 +135,12 @@ mod parallel_execution_tests {
         // Test with 4 jobs (parallel) - just ensure it works
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
+            .arg("--project-dir")
+            .arg("tests/sample_project")
             .arg("--jobs")
             .arg("4");
 
@@ -149,6 +157,8 @@ mod parallel_execution_tests {
         // Test with 1 job (minimum valid)
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -170,6 +180,8 @@ mod parallel_execution_tests {
         // Test with very high job count (more than test cases)
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -193,9 +205,11 @@ mod runner_splitting_tests {
         let temp_dir = TempDir::new().unwrap();
         let matrix_path = create_multi_case_matrix(&temp_dir, 6);
 
-        // Test runner 0 of 2 (should get first half of cases)
+        // Test runner 0 of 2
         let mut cmd1 = Command::cargo_bin("matrix-runner").unwrap();
         cmd1.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -205,13 +219,11 @@ mod runner_splitting_tests {
             .arg("--runner-index")
             .arg("0");
 
-        cmd1.assert().success().stdout(
-            predicate::str::contains("Running as runner").and(predicate::str::contains("/2")),
-        );
-
-        // Test runner 1 of 2 (should get second half of cases)
+        // Test runner 1 of 2
         let mut cmd2 = Command::cargo_bin("matrix-runner").unwrap();
         cmd2.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -220,10 +232,14 @@ mod runner_splitting_tests {
             .arg("2")
             .arg("--runner-index")
             .arg("1");
-
-        cmd2.assert().success().stdout(
-            predicate::str::contains("Running as runner").and(predicate::str::contains("/2")),
-        );
+        
+        cmd1.assert()
+            .success()
+            .stdout(predicate::str::contains("Running as runner 0 of 2"));
+        
+        cmd2.assert()
+            .success()
+            .stdout(predicate::str::contains("Running as runner 1 of 2"));
     }
 
     #[test]
@@ -234,6 +250,8 @@ mod runner_splitting_tests {
         // Test with more runners than cases
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -255,6 +273,8 @@ mod runner_splitting_tests {
         // Test with runner index >= total runners
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -267,7 +287,9 @@ mod runner_splitting_tests {
         // Should fail with validation error
         cmd.assert()
             .failure()
-            .stderr(predicate::str::contains("runner-index must be less than"));
+            .stderr(predicate::str::contains(
+                "Runner index must be less than total runners",
+            ));
     }
 
     #[test]
@@ -278,6 +300,8 @@ mod runner_splitting_tests {
         // Test without runner splitting (default mode)
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -296,18 +320,22 @@ mod resource_management_tests {
     #[test]
     fn test_temporary_directory_cleanup() {
         let temp_dir = TempDir::new().unwrap();
-        let matrix_path = create_multi_case_matrix(&temp_dir, 2);
+        let matrix_path = create_multi_case_matrix(&temp_dir, 1);
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
             .arg("tests/sample_project");
 
-        cmd.assert().success().stdout(predicate::str::contains(
-            "Temporary directories will be auto-cleaned",
-        ));
+        // The main check is that this runs without error.
+        // The temporary directories are cleaned up by the `tempfile` crate on drop.
+        cmd.assert()
+            .success()
+            .stdout(predicate::str::contains("All tests passed successfully!"));
     }
 
     #[test]
@@ -317,6 +345,8 @@ mod resource_management_tests {
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")

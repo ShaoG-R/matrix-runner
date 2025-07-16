@@ -111,7 +111,7 @@ pub async fn execute(
             t!(
                 "run.running_as_split_runner",
                 locale = &locale,
-                index = index + 1,
+                index = index,
                 total = total,
                 count = plan.cases_to_run.len()
             )

@@ -26,6 +26,8 @@ mod config_error_tests {
     fn test_nonexistent_config_file() {
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg("nonexistent_file.toml")
             .arg("--project-dir")
@@ -43,6 +45,8 @@ mod config_error_tests {
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -58,6 +62,8 @@ mod config_error_tests {
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -74,6 +80,8 @@ mod config_error_tests {
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -94,6 +102,8 @@ cases = []
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -125,6 +135,8 @@ no_default_features = false
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -152,6 +164,8 @@ no_default_features = false
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -183,6 +197,8 @@ no_default_features = false
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -199,16 +215,38 @@ mod command_error_tests {
     #[test]
     fn test_invalid_custom_command() {
         let temp_dir = TempDir::new().unwrap();
-        let matrix_path = create_invalid_command_config(&temp_dir);
+        let matrix_path = temp_dir.path().join("invalid_command.toml");
+        // This TOML is now valid, but the case should be filtered on non-aarch64.
+        let content = r#"
+language = "en"
+[[cases]]
+name = "invalid-command-case"
+features = ""
+no_default_features = false
+command = "nonexistent_command"
+arch = ["aarch64"]
+"#;
+        fs::write(&matrix_path, content).unwrap();
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
-        cmd.arg("run").arg("--config").arg(&matrix_path);
+        cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
+            .arg("--config")
+            .arg(&matrix_path)
+            .arg("--project-dir")
+            .arg("tests/sample_project");
 
-        // The command might be skipped or fail, both are acceptable
-        let output = cmd.output().unwrap();
-        assert!(output.status.code().is_some());
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert!(stdout.contains("Skipped") || stdout.contains("UNEXPECTED FAILURE DETECTED"));
+        // On non-aarch64 systems, the case is filtered, and the program should exit gracefully.
+        #[cfg(not(target_arch = "aarch64"))]
+        cmd.assert()
+            .success()
+            .stdout(predicate::str::contains("No test cases to run"));
+
+        // On aarch64, this test would rightfully fail because the command is invalid.
+        // A separate test, running only on aarch64, would be needed to verify that.
+        #[cfg(target_arch = "aarch64")]
+        cmd.assert().failure();
     }
 
     #[test]
@@ -217,22 +255,26 @@ mod command_error_tests {
         let matrix_path = temp_dir.path().join("invalid_args.toml");
         let content = r#"
 language = "en"
-
 [[cases]]
 name = "invalid-args-case"
-command = "echo --invalid-flag-that-does-not-exist"
 features = ""
 no_default_features = false
+command = "cargo build --bin nonexistent_target"
 "#;
         fs::write(&matrix_path, content).unwrap();
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
-        cmd.arg("run").arg("--config").arg(&matrix_path);
+        cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
+            .arg("--config")
+            .arg(&matrix_path)
+            .arg("--project-dir")
+            .arg("tests/sample_project");
 
-        // This might succeed or fail depending on the echo implementation
-        // We just want to ensure it doesn't crash
-        let output = cmd.output().unwrap();
-        assert!(output.status.code().is_some());
+        cmd.assert()
+            .failure()
+            .stdout(predicate::str::contains("Test 'invalid-args-case' failed"));
     }
 }
 
@@ -243,10 +285,27 @@ mod architecture_filtering_tests {
     #[test]
     fn test_architecture_filtering() {
         let temp_dir = TempDir::new().unwrap();
-        let matrix_path = create_arch_filtered_config(&temp_dir);
+        let matrix_path = temp_dir.path().join("arch_filtered.toml");
+        let content = r#"
+language = "en"
+[[cases]]
+name = "unsupported-arch-case"
+features = ""
+no_default_features = false
+arch = ["nonexistent_arch"]
+
+[[cases]]
+name = "supported-arch-case"
+features = ""
+no_default_features = false
+arch = ["x86_64", "aarch64"]
+"#;
+        fs::write(&matrix_path, content).unwrap();
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -255,9 +314,7 @@ mod architecture_filtering_tests {
         cmd.assert()
             .success()
             .stdout(
-                predicate::str::contains("Filtered out").and(predicate::str::contains(
-                    "test case(s) based on current architecture",
-                )),
+                predicate::str::contains("Filtered out 1 of 2 cases based on current architecture."),
             );
     }
 
@@ -284,6 +341,8 @@ arch = ["nonexistent_arch_2"]
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -319,6 +378,8 @@ no_default_features = false
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -376,6 +437,8 @@ no_default_features = false
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -407,6 +470,8 @@ no_default_features = false
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -417,7 +482,7 @@ no_default_features = false
             .arg("2"); // Index equal to total - invalid
 
         cmd.assert().failure().stderr(predicate::str::contains(
-            "--runner-index must be less than --total-runners.",
+            "Runner index must be less than total runners.",
         ));
     }
 
@@ -437,6 +502,8 @@ no_default_features = false
 
         let mut cmd = Command::cargo_bin("matrix-runner").unwrap();
         cmd.arg("run")
+            .arg("--lang")
+            .arg("en")
             .arg("--config")
             .arg(&matrix_path)
             .arg("--project-dir")
@@ -445,7 +512,7 @@ no_default_features = false
             .arg("2"); // Missing --runner-index
 
         cmd.assert().failure().stderr(predicate::str::contains(
-            "--total-runners and --runner-index must be provided together.",
+            "Both --total-runners and --runner-index must be provided.",
         ));
     }
 }

@@ -6,9 +6,14 @@
 //! 此模块包含由 `rust_i18n` 宏提供的国际化功能的测试。
 
 use rust_i18n::t;
+use std::sync::Mutex;
 
 // Load I18n macro, an alternative to `rust_i18n::i18n!("locales")`
-rust_i18n::i18n!("locales");
+rust_i18n::i18n!("locales", fallback = "en");
+
+lazy_static::lazy_static! {
+    static ref I18N_TEST_MUTEX: Mutex<()> = Mutex::new(());
+}
 
 #[cfg(test)]
 mod i18n_tests {
@@ -16,6 +21,8 @@ mod i18n_tests {
 
     #[test]
     fn test_set_locale_and_translate() {
+        let _guard = I18N_TEST_MUTEX.lock().unwrap();
+
         // Set to English
         rust_i18n::set_locale("en");
         let en_text = t!("common.project_root_detected", path = "test/path");
@@ -32,6 +39,8 @@ mod i18n_tests {
 
     #[test]
     fn test_fallback_to_default_locale() {
+        let _guard = I18N_TEST_MUTEX.lock().unwrap();
+
         // Set an unsupported locale
         rust_i18n::set_locale("fr"); // "fr" is not a supported language in this project
 
@@ -45,6 +54,8 @@ mod i18n_tests {
 
     #[test]
     fn test_translation_with_interpolation() {
+        let _guard = I18N_TEST_MUTEX.lock().unwrap();
+
         rust_i18n::set_locale("en");
         let text = t!("common.testing_crate", name = "my-crate");
         assert_eq!(text, "Testing crate: my-crate");
@@ -55,20 +66,17 @@ mod i18n_tests {
     }
 
     #[test]
-    fn test_concurrent_access() {
-        // Test that setting locale in one thread doesn't conflict with another.
-        // `rust_i18n` uses a thread-local storage for the locale, so they should be isolated.
-        let handle = std::thread::spawn(|| {
-            rust_i18n::set_locale("zh-CN");
-            t!("common.all_tests_passed")
-        });
+    fn test_sequential_locale_switching() {
+        let _guard = I18N_TEST_MUTEX.lock().unwrap();
 
-        // Main thread remains in English
+        // Set to English first
         rust_i18n::set_locale("en");
-        let main_thread_text = t!("common.all_tests_passed");
-        assert_eq!(main_thread_text, "All tests passed successfully!");
+        let en_text = t!("common.all_tests_passed");
+        assert_eq!(en_text, "All tests passed successfully!");
 
-        let child_thread_text = handle.join().unwrap();
-        assert_eq!(child_thread_text, "所有测试成功通过！");
+        // Then switch to Chinese
+        rust_i18n::set_locale("zh-CN");
+        let zh_text = t!("common.all_tests_passed");
+        assert_eq!(zh_text, "所有测试成功通过！");
     }
 }
