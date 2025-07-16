@@ -1,0 +1,141 @@
+<!DOCTYPE html><html><head><title>测试矩阵报告</title><style>:root {
+    --color-passed: #28a745;
+    --color-passed-bg: #e9f5ec;
+    --color-failed: #dc3545;
+    --color-failed-bg: #f8d7da;
+    --color-allowed-failure: #ffc107;
+    --color-allowed-failure-bg: #fff8e1;
+    --color-skipped: #6c757d;
+    --color-skipped-bg: #f1f3f5;
+    --color-timeout: #fd7e14;
+    --color-timeout-bg: #fff3e0;
+    --font-family-sans-serif: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-family-monospace: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --table-border-color: #dee2e6;
+}
+body {
+    font-family: var(--font-family-sans-serif),serif;
+    line-height: 1.6;
+    color: #333;
+    margin: 0;
+    padding: 20px;
+    background-color: #fdfdff;
+}
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+h1, h2 {
+    color: #333;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+    margin-top: 0;
+}
+.summary-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+.summary-item {
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    padding: 15px;
+    flex-grow: 1;
+    text-align: center;
+    border: 1px solid var(--table-border-color);
+}
+.summary-item .count {
+    display: block;
+    font-size: 2em;
+    font-weight: 700;
+}
+.summary-item .label {
+    font-size: 0.9em;
+    color: #555;
+}
+.status-cell {
+    font-weight: 600;
+    text-align: center;
+    border-radius: 4px;
+    padding: 5px 10px;
+    display: inline-block;
+    min-width: 80px;
+}
+.status-Passed {
+    color: var(--color-passed);
+    background-color: var(--color-passed-bg);
+}
+.status-Failed {
+    color: var(--color-failed);
+    background-color: var(--color-failed-bg);
+}
+.status-Allowed-Failure {
+    color: var(--color-allowed-failure);
+    background-color: var(--color-allowed-failure-bg);
+}
+.status-Skipped {
+    color: var(--color-skipped);
+    background-color: var(--color-skipped-bg);
+}
+.status-Timeout {
+    color: var(--color-timeout);
+    background-color: var(--color-timeout-bg);
+}
+.output-toggle {
+    cursor: pointer;
+    color: #007bff;
+    text-decoration: underline;
+    font-size: 0.9em;
+}
+.output-toggle:hover {
+    color: #0056b3;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+th, td {
+    border: 1px solid var(--table-border-color);
+    padding: 10px;
+    text-align: left;
+    vertical-align: middle;
+}
+th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+pre.output-content {
+    background: #222;
+    color: #eee;
+    padding: 15px;
+    border-radius: 5px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: var(--font-family-monospace),monospace;
+    margin-top: 10px;
+}
+.duration-cell, .retries-cell {
+    text-align: right;
+    width: 80px;
+}
+.status-col {
+    width: 150px;
+    text-align: center;
+} </style></head><body><h1>测试矩阵报告</h1><div class='summary-container'><div class='summary-item'><span class='count'>2</span><span class='label'>总计</span></div><div class='summary-item'><span class='count passed-text'>0</span><span class='label'>通过</span></div><div class='summary-item'><span class='count failed-text'>2</span><span class='label'>失败</span></div><div class='summary-item'><span class='count skipped-text'>0</span><span class='label'>跳过</span></div></div><table><thead><tr><th>名称</th><th class='status-col'>状态</th><th class='duration-cell'>耗时</th><th class='retries-cell'>重试</th></tr></thead><tbody><tr><td>unknown</td><td class='status-col'><div class='status-cell status-Failed'>失败</div><div class='output-toggle' onclick="toggleOutput('output-0')">切换输出</div></td><td class='duration-cell'>0.00s</td><td class='retries-cell'></td></tr><tr id='output-0' style='display:none;'><td colspan='4'><pre class='output-content'>[33m无法解析特定的编译器错误。以下是原始输出片段：[0m
+
+run.critical_error</pre></td></tr><tr><td>unknown</td><td class='status-col'><div class='status-cell status-Failed'>失败</div><div class='output-toggle' onclick="toggleOutput('output-1')">切换输出</div></td><td class='duration-cell'>0.00s</td><td class='retries-cell'></td></tr><tr id='output-1' style='display:none;'><td colspan='4'><pre class='output-content'>[33m无法解析特定的编译器错误。以下是原始输出片段：[0m
+
+run.critical_error</pre></td></tr></tbody></table><script>function toggleOutput(id) {
+    const element = document.getElementById(id);
+    if (element.style.display === 'none') {
+        element.style.display = 'block';
+    } else {
+        element.style.display = 'none';
+    }
+} </script></body></html>

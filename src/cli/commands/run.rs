@@ -51,9 +51,15 @@ pub async fn execute(
 ) -> Result<()> {
     let (test_matrix, config_path) = setup_and_parse_config(&config)?;
 
-    // Set locale based on priority: CLI > config file > system default
-    let locale = lang.unwrap_or(test_matrix.language.clone());
-    rust_i18n::set_locale(&locale);
+    // The locale has been pre-initialized in main.rs from the system or --lang argument.
+    // We only override it if the config file specifies a non-default language
+    // AND no --lang argument was provided.
+    if lang.is_none() && test_matrix.language != "en" {
+        rust_i18n::set_locale(&test_matrix.language);
+    }
+    
+    // Get the final, correct locale for use in this command.
+    let locale = rust_i18n::locale().to_string();
 
     let (project_root, crate_name) = prepare_environment(&project_dir, &locale).await?;
 
@@ -165,21 +171,37 @@ pub async fn execute(
 
 /// Sets up and parses the test matrix configuration file.
 fn setup_and_parse_config(config_path_arg: &PathBuf) -> Result<(TestMatrix, PathBuf)> {
-    // For config parsing, we don't have the locale yet. Use English as a default.
-    let locale = "en";
-    let config_path = fs::canonicalize(config_path_arg)
-        .with_context(|| t!("common.config_read_failed_path", locale = locale, path = config_path_arg.display()))?;
+    // For config parsing, we must use the locale that has already been set in main.rs.
+    let locale = rust_i18n::locale();
+    let config_path = match fs::canonicalize(config_path_arg) {
+        Ok(path) => path,
+        Err(e) => {
+            return Err(anyhow::Error::new(e).context(t!(
+                "common.config_read_failed_path",
+                locale = &locale,
+                path = config_path_arg.display().to_string()
+            )));
+        }
+    };
 
     let config_matrix = config::load_test_matrix(&config_path)
-        .with_context(|| t!("common.config_parse_failed", locale = locale))?;
+        .with_context(|| t!("common.config_parse_failed", locale = &locale))?;
 
     Ok((config_matrix, config_path))
 }
 
 /// Prepares the environment for running tests.
 async fn prepare_environment(project_dir: &PathBuf, locale: &str) -> Result<(PathBuf, String)> {
-    let project_root = fs::canonicalize(project_dir)
-        .with_context(|| t!("common.project_dir_not_found", locale = locale, path = project_dir.display()))?;
+    let project_root = match fs::canonicalize(project_dir) {
+        Ok(path) => path,
+        Err(e) => {
+            return Err(anyhow::Error::new(e).context(t!(
+                "common.project_dir_not_found",
+                locale = locale,
+                path = project_dir.display().to_string()
+            )));
+        }
+    };
 
     let fetch_status = tokio::process::Command::new("cargo")
         .arg("fetch")
@@ -193,8 +215,16 @@ async fn prepare_environment(project_dir: &PathBuf, locale: &str) -> Result<(Pat
     }
 
     let manifest_path = project_root.join("Cargo.toml");
-    let manifest_content = fs::read_to_string(&manifest_path)
-        .with_context(|| t!("common.manifest_read_failed", locale = locale, path = manifest_path.display()))?;
+    let manifest_content = match fs::read_to_string(&manifest_path) {
+        Ok(content) => content,
+        Err(e) => {
+            return Err(anyhow::Error::new(e).context(t!(
+                "common.manifest_read_failed",
+                locale = locale,
+                path = manifest_path.display().to_string()
+            )));
+        }
+    };
     let manifest: Manifest =
         toml::from_str(&manifest_content).context(t!("common.manifest_parse_failed", locale = locale))?;
     let crate_name = manifest.package.name;
