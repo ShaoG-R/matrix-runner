@@ -268,86 +268,70 @@ async fn run_tests(
         let project_root = project_root.clone();
         let crate_name = crate_name.to_string();
         let is_flaky = case.allow_failure.iter().any(|os| os == current_os);
-        let case_clone_for_error = case.clone();
 
-        tokio::spawn(async move {
-            let mut handle = tokio::spawn(async move {
-                run_test_case(case, &project_root, &crate_name).await
-            });
+        async move {
+            let case_clone_for_error = case.clone();
+            let mut handle =
+                tokio::spawn(
+                    async move { run_test_case(case, &project_root, &crate_name).await },
+                );
 
-            let mut final_result;
-            let mut handle_finished = false;
-
-            tokio::select! {
+            let result = tokio::select! {
                 biased;
+
                 _ = overall_stop_token.cancelled() => {
                     handle.abort();
-                    final_result = models::TestResult::Skipped;
+                    Ok(models::TestResult::Skipped)
                 }
-                _ = &mut handle => {
-                    handle_finished = true;
-                    // We will process the result outside the select block.
-                    // This placeholder is just to satisfy the compiler.
-                    final_result = models::TestResult::Skipped;
+
+                result = &mut handle => {
+                    result.map(|inner_result| {
+                        match inner_result {
+                            Ok(res) => res,
+                            Err(e) => models::TestResult::Failed {
+                                case: case_clone_for_error.clone(),
+                                output: e.to_string(),
+                                reason: FailureReason::TestFailed,
+                                duration: Duration::default(),
+                            },
+                        }
+                    })
                 }
+            };
+            
+            let final_result = match result {
+                Ok(res) => res,
+                Err(e) => models::TestResult::Failed {
+                    case: case_clone_for_error.clone(),
+                    output: e.to_string(),
+                    reason: FailureReason::TestFailed,
+                    duration: Duration::default(),
+                }
+            };
+
+            if !is_flaky && final_result.is_unexpected_failure() {
+                fast_fail_token.cancel();
             }
 
-            if handle_finished {
-                 if fast_fail_token.is_cancelled() && !is_flaky {
-                    final_result = models::TestResult::Skipped;
-                } else {
-                    final_result = match handle.await {
-                        Ok(Ok(res)) => res,
-                        Ok(Err(e)) => models::TestResult::Failed {
-                            case: case_clone_for_error.clone(),
-                            output: e.to_string(),
-                            reason: FailureReason::TestFailed,
-                            duration: Duration::default(),
-                        },
-                        Err(e) => models::TestResult::Failed {
-                            case: case_clone_for_error.clone(),
-                            output: e.to_string(),
-                            reason: FailureReason::Build,
-                            duration: Duration::default(),
-                        },
-                    };
-                }
-
-                if !is_flaky && matches!(final_result, models::TestResult::Failed { .. }) {
-                    // Cancel other tasks if this is an unexpected failure
-                    fast_fail_token.cancel();
-                }
-            }
-
-            final_result
-        })
+            (case_clone_for_error, final_result)
+        }
     }))
     .buffer_unordered(jobs)
-    .collect::<Vec<Result<models::TestResult, tokio::task::JoinError>>>()
+    .collect::<Vec<(
+        crate::core::config::TestCase,
+        models::TestResult,
+    )>>()
     .await;
 
     // Process results and check for unexpected failures
     let mut has_unexpected_failures = false;
     let final_results: Vec<models::TestResult> = stream
         .into_iter()
-        .map(|res| match res {
-            Ok(test_result) => {
-                if matches!(test_result, models::TestResult::Failed { .. }) {
-                    if test_result.is_unexpected_failure() {
-                        has_unexpected_failures = true;
-                    }
-                }
-                test_result
-            }
-            Err(e) => {
+        .map(|(_case, test_result)| {
+            if test_result.is_unexpected_failure() {
                 has_unexpected_failures = true;
-                models::TestResult::Failed {
-                    case: crate::core::config::TestCase::default(),
-                    output: t!("run.critical_error", locale = locale, error = e.to_string()).to_string(),
-                    reason: FailureReason::BuildFailed,
-                    duration: Duration::default(),
-                }
             }
+            test_result
         })
         .collect();
 

@@ -256,9 +256,30 @@ pub struct BuiltTest {
     /// Duration of the build process
     /// 构建过程的持续时间
     pub duration: Duration,
+    /// The build context that holds the temporary directory.
+    /// This must be kept alive until the test is finished.
+    /// 保存临时目录的构建上下文。
+    /// 必须保持活动状态直到测试结束。
+    _build_ctx: BuildContext,
 }
 
 impl BuiltTest {
+    /// Creates a new `BuiltTest`.
+    pub fn new(
+        case: TestCase,
+        executable_path: PathBuf,
+        duration: Duration,
+        build_ctx: BuildContext,
+    ) -> Self {
+        Self {
+            case,
+            executable_path,
+            duration,
+            _build_ctx: build_ctx,
+        }
+    }
+
+    /// Checks if the test case has an associated executable.
     pub fn is_empty(&self) -> bool {
         // This is a placeholder. A real implementation might check
         // if the executable_path is a dummy or special value.

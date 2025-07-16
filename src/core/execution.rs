@@ -105,7 +105,7 @@ pub async fn run_test_case(
             }
             Err(e) => {
                 eprintln!("A critical error occurred during test execution: {}", e);
-                return Ok(TestResult::Skipped);
+                return Err(e.context(format!("Critical error in test case {}", case_name)));
             }
         }
     }
@@ -194,21 +194,7 @@ async fn run_default_flow_case(
     crate_name: &str,
 ) -> Result<TestResult> {
     match build_test_case(case.clone(), project_root, crate_name).await {
-        Ok(built_test) => {
-            if built_test.executable_path.as_os_str().is_empty() {
-                println!(
-                    "{}",
-                    t!("run.test_no_binaries", name = case.name).yellow()
-                );
-                return Ok(TestResult::Passed {
-                    case,
-                    output: t!("run.test_no_binaries_message").to_string(),
-                    duration: built_test.duration,
-                    retries: 1,
-                });
-            }
-            run_built_test(built_test, project_root).await
-        }
+        Ok(built_test) => run_built_test(built_test, project_root).await,
         Err(e) => {
             let error_string = e.to_string();
             let final_error_result = if let Ok(test_result) = e.downcast::<TestResult>() {
@@ -305,16 +291,30 @@ async fn build_test_case(
         t!("run.build_success", duration = build_duration.as_secs_f64()).green()
     );
 
-    Ok(BuiltTest {
+    Ok(BuiltTest::new(
         case,
         executable_path,
-        duration: build_duration,
-    })
+        build_duration,
+        build_ctx,
+    ))
 }
 
 /// Executes a previously built test binary.
 async fn run_built_test(built_test: BuiltTest, project_root: &PathBuf) -> Result<TestResult> {
     let case = built_test.case.clone();
+    if built_test.executable_path.as_os_str().is_empty() {
+        println!(
+            "{}",
+            t!("run.test_no_binaries", name = case.name).yellow()
+        );
+        return Ok(TestResult::Passed {
+            case,
+            output: t!("run.test_no_binaries_message").to_string(),
+            duration: built_test.duration,
+            retries: 1,
+        });
+    }
+
     println!(
         "{}",
         t!("run.running_test", name = case.name).blue()
@@ -328,7 +328,16 @@ async fn run_built_test(built_test: BuiltTest, project_root: &PathBuf) -> Result
     let run_duration = run_start_time.elapsed();
     let total_duration = built_test.duration + run_duration;
 
-    let status = status_res.with_context(|| "Failed to get test process status")?;
+    let status = match status_res {
+        Ok(s) => s,
+        Err(e) => {
+            return Err(anyhow::anyhow!(
+                "Failed to get test process status for executable: '{}'. OS Error: {}",
+                built_test.executable_path.display(),
+                e
+            ));
+        }
+    };
 
     if !output.trim().is_empty() {
         println!("{}", output.trim());

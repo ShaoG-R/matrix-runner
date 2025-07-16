@@ -1,6 +1,6 @@
 use criterion::{Criterion, criterion_group, criterion_main};
-use matrix_runner::runner::config::TestCase;
-use matrix_runner::runner::execution::run_test_case;
+use matrix_runner::core::config::TestCase;
+use matrix_runner::core::execution::run_test_case;
 use std::path::PathBuf;
 use tokio::runtime::Runtime;
 
