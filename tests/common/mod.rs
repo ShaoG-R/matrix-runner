@@ -1,3 +1,13 @@
+//! # Common Test Helpers / 通用测试辅助模块
+//!
+//! This module provides shared utilities for integration tests, such as
+//! setting up temporary test environments and creating specific TOML configurations.
+//!
+//! 此模块为集成测试提供共享的实用功能，
+//! 例如设置临时测试环境和创建特定的 TOML 配置文件。
+
+#![allow(dead_code)]
+
 // Shared test helpers for integration tests
 use std::fs;
 use std::path::PathBuf;
@@ -21,6 +31,8 @@ path = "src/lib.rs"
 [features]
 feature_build_fail = []
 feature_test_fail = []
+feature_test_success = []
+feature_custom_command = []
 "#;
     fs::write(sample_project_path.join("Cargo.toml"), cargo_toml_content).expect("Failed to write Cargo.toml");
 

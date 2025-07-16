@@ -46,7 +46,7 @@ pub enum FailureReason {
 /// 表示单个测试用例执行的最终结果。
 /// 此枚举捕获运行测试用例的所有可能结果，
 /// 包括成功、各种类型的失败和跳过的测试。
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TestResult {
     /// The test case passed successfully.
     /// 测试用例成功通过。

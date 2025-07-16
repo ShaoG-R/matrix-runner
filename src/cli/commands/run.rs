@@ -132,7 +132,6 @@ pub async fn execute(
         &project_root,
         &crate_name,
         overall_stop_token,
-        &locale,
     )
     .await?;
 
@@ -254,7 +253,6 @@ async fn run_tests(
     project_root: &PathBuf,
     crate_name: &str,
     overall_stop_token: CancellationToken,
-    locale: &str,
 ) -> Result<(
     Vec<models::TestResult>,
     bool,
