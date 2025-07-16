@@ -36,7 +36,7 @@ use crate::infra::command::format_build_error_output;
 ///   - Skipped          | test_case_4                             |       N/A
 /// ```
 pub fn print_summary(results: &[TestResult], locale: &str) {
-    println!("\n{}", t!("test_summary_banner", locale = locale).bold());
+    println!("\n{}", t!("report.summary_banner", locale = locale).bold());
 
     for result in results {
         let status_str = result.get_status_str(locale);
@@ -105,7 +105,7 @@ pub fn print_unexpected_failure_details(unexpected_failures: &[&TestResult], loc
         return;
     }
 
-    println!("\n{}", t!("unexpected_failure_banner", locale = locale).red().bold());
+    println!("\n{}", t!("report.unexpected_failure_banner", locale = locale).red().bold());
     println!("{}", "-".repeat(80));
 
     for (i, result) in unexpected_failures.iter().enumerate() {
@@ -113,14 +113,14 @@ pub fn print_unexpected_failure_details(unexpected_failures: &[&TestResult], loc
             "[{}/{}] {} '{}'",
             i + 1,
             unexpected_failures.len(),
-            t!("report_header_failure", locale = locale).red(),
+            t!("report.report_header_failure", locale = locale, name = result.case_name()).red(),
             result.case_name().cyan()
         );
 
         if let TestResult::Failed { output, reason, .. } = result {
             let log_header = match reason {
-                FailureReason::Build | FailureReason::BuildFailed => t!("build_log", locale = locale),
-                _ => t!("test_log", locale = locale),
+                FailureReason::Build | FailureReason::BuildFailed => t!("run.build_log", locale = locale),
+                _ => t!("run.test_log", locale = locale),
             };
             println!("\n--- {} ---\n", log_header.yellow());
             println!("{}", output);
@@ -149,6 +149,6 @@ pub fn get_error_output_from_result(result: &TestResult, locale: &str) -> String
                 output.clone()
             }
         }
-        _ => t!("no_error_output", locale = locale).to_string(),
+        _ => t!("run.no_error_output", locale = locale).to_string(),
     }
 } 

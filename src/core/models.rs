@@ -101,17 +101,17 @@ impl TestResult {
     /// 以字符串形式获取测试结果的状态以供显示。
     pub fn get_status_str(&self, locale: &str) -> String {
         match self {
-            TestResult::Passed { .. } => t!("status_passed", locale = locale).to_string(),
+            TestResult::Passed { .. } => t!("report.status_passed", locale = locale).to_string(),
             TestResult::Failed { case, reason, .. } => {
                 if *reason == FailureReason::Timeout {
-                    t!("status_timeout", locale = locale).to_string()
+                    t!("report.status_timeout", locale = locale).to_string()
                 } else if case.allow_failure.iter().any(|s| s == std::env::consts::OS) {
-                    t!("status_allowed_failure", locale = locale).to_string()
+                    t!("report.status_allowed_failure", locale = locale).to_string()
                 } else {
-                    t!("status_failed", locale = locale).to_string()
+                    t!("report.status_failed", locale = locale).to_string()
                 }
             }
-            TestResult::Skipped => t!("status_skipped", locale = locale).to_string(),
+            TestResult::Skipped => t!("report.status_skipped", locale = locale).to_string(),
         }
     }
 

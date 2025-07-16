@@ -57,7 +57,7 @@ pub fn format_build_error_output(raw_output: &str) -> String {
         let snippet = raw_output.lines().take(50).collect::<Vec<_>>().join("\n");
         format!(
             "{}\n\n{}",
-            t!("compiler_error_parse_failed").yellow(),
+            t!("run.compiler_error_parse_failed").yellow(),
             snippet
         )
     } else {
@@ -108,7 +108,7 @@ pub async fn spawn_and_capture(
         Some(stdout) => stdout,
         None => {
             return (
-                Err(std::io::Error::other(t!("capture_stdout_failed"))),
+                Err(std::io::Error::other(t!("common.capture_stdout_failed"))),
                 String::new(),
             );
         }
@@ -117,7 +117,7 @@ pub async fn spawn_and_capture(
         Some(stderr) => stderr,
         None => {
             return (
-                Err(std::io::Error::other(t!("capture_stderr_failed"))),
+                Err(std::io::Error::other(t!("common.capture_stderr_failed"))),
                 String::new(),
             );
         }

@@ -55,15 +55,15 @@ pub async fn execute(
 
     println!(
         "{}",
-        t!("project_root_detected", locale = locale, path = project_root.display())
+        t!("common.project_root_detected", locale = &locale, path = project_root.display())
     );
     println!(
         "{}",
-        t!("testing_crate", locale = locale, name = crate_name.yellow())
+        t!("common.testing_crate", locale = &locale, name = crate_name.yellow())
     );
     println!(
         "{}",
-        t!("loading_test_matrix", locale = locale, path = config_path.display())
+        t!("common.loading_test_matrix", locale = &locale, path = config_path.display())
     );
 
     let overall_stop_token = setup_signal_handler(&locale)?;
@@ -74,10 +74,10 @@ pub async fn execute(
         println!(
             "{}",
             t!(
-                "filtered_arch_cases",
-                locale = locale,
+                "run.filtered_arch_cases",
+                locale = &locale,
                 filtered = plan.filtered_arch_count,
-                total = plan.cases_to_run.len()
+                total = plan.cases_to_run.len() + plan.filtered_arch_count,
             )
             .cyan()
         );
@@ -85,13 +85,13 @@ pub async fn execute(
 
     println!(
         "{}",
-        t!("current_os", locale = locale, os = env::consts::OS).cyan()
+        t!("common.current_os", locale = &locale, os = env::consts::OS).cyan()
     );
 
     if plan.flaky_cases_count > 0 {
         println!(
             "{}",
-            t!("flaky_cases_found", locale = locale, count = plan.flaky_cases_count).yellow()
+            t!("common.flaky_cases_found", locale = &locale, count = plan.flaky_cases_count).yellow()
         );
     }
 
@@ -99,8 +99,8 @@ pub async fn execute(
         println!(
             "{}",
             t!(
-                "running_as_split_runner",
-                locale = locale,
+                "run.running_as_split_runner",
+                locale = &locale,
                 index = index + 1,
                 total = total,
                 count = plan.cases_to_run.len()
@@ -108,11 +108,11 @@ pub async fn execute(
             .bold()
         );
     } else {
-        println!("{}", t!("running_as_single_runner", locale = locale).bold());
+        println!("{}", t!("run.running_as_single_runner", locale = &locale).bold());
     }
 
     if plan.cases_to_run.is_empty() {
-        println!("{}", t!("no_cases_to_run", locale = locale).green());
+        println!("{}", t!("common.no_cases_to_run", locale = &locale).green());
         return Ok(());
     }
 
@@ -143,7 +143,7 @@ pub async fn execute(
         print_unexpected_failure_details(&unexpected_failures, &locale);
         anyhow::bail!("Matrix tests failed with unexpected errors.");
     } else {
-        println!("\n{}", t!("all_tests_passed", locale = locale).green().bold());
+        println!("\n{}", t!("common.all_tests_passed", locale = &locale).green().bold());
         Ok(())
     }
 }
@@ -153,10 +153,10 @@ fn setup_and_parse_config(config_path_arg: &PathBuf) -> Result<(TestMatrix, Path
     // For config parsing, we don't have the locale yet. Use English as a default.
     let locale = "en";
     let config_path = fs::canonicalize(config_path_arg)
-        .with_context(|| t!("config_read_failed_path", locale = locale, path = config_path_arg.display()))?;
+        .with_context(|| t!("common.config_read_failed_path", locale = locale, path = config_path_arg.display()))?;
 
     let config_matrix = config::load_test_matrix(&config_path)
-        .with_context(|| t!("config_parse_failed", locale = locale))?;
+        .with_context(|| t!("common.config_parse_failed", locale = locale))?;
 
     Ok((config_matrix, config_path))
 }
@@ -164,7 +164,7 @@ fn setup_and_parse_config(config_path_arg: &PathBuf) -> Result<(TestMatrix, Path
 /// Prepares the environment for running tests.
 async fn prepare_environment(project_dir: &PathBuf, locale: &str) -> Result<(PathBuf, String)> {
     let project_root = fs::canonicalize(project_dir)
-        .with_context(|| t!("project_dir_not_found", locale = locale, path = project_dir.display()))?;
+        .with_context(|| t!("common.project_dir_not_found", locale = locale, path = project_dir.display()))?;
 
     let fetch_status = tokio::process::Command::new("cargo")
         .arg("fetch")
@@ -174,14 +174,14 @@ async fn prepare_environment(project_dir: &PathBuf, locale: &str) -> Result<(Pat
         .context("Failed to execute 'cargo fetch'")?;
 
     if !fetch_status.success() {
-        anyhow::bail!(t!("cargo_fetch_failed", locale = locale));
+        anyhow::bail!(t!("common.cargo_fetch_failed", locale = locale));
     }
 
     let manifest_path = project_root.join("Cargo.toml");
     let manifest_content = fs::read_to_string(&manifest_path)
-        .with_context(|| t!("manifest_read_failed", locale = locale, path = manifest_path.display()))?;
+        .with_context(|| t!("common.manifest_read_failed", locale = locale, path = manifest_path.display()))?;
     let manifest: Manifest =
-        toml::from_str(&manifest_content).context(t!("manifest_parse_failed", locale = locale))?;
+        toml::from_str(&manifest_content).context(t!("common.manifest_parse_failed", locale = locale))?;
     let crate_name = manifest.package.name;
 
     Ok((project_root, crate_name))
@@ -195,7 +195,7 @@ fn setup_signal_handler(locale: &str) -> Result<CancellationToken> {
 
     tokio::spawn(async move {
         signal::ctrl_c().await.expect("Failed to listen for Ctrl-C");
-        println!("\n{}", t!("shutdown_signal", locale = &locale).yellow());
+        println!("\n{}", t!("common.shutdown_signal", locale = &locale).yellow());
         token_clone.cancel();
     });
 

@@ -1,0 +1,60 @@
+ ({} retries)
+{:.2?}
+{:.2}
+<div class='stat failed'>Failed: <span>{}</span></div>
+<div class='stat passed'>Passed: <span>{}</span></div>
+<div class='stat skipped'>Skipped: <span>{}</span></div>
+<div class='stat'>Total: <span>{}</span></div>
+all_tests_passed
+build_failed
+build_failed_unexpected
+build_log
+build_success
+building_test
+capture_stderr_failed
+capture_stdout_failed
+cargo_fetch_failed
+compiler_error_parse_failed
+config_parse_failed
+config_read_failed_path
+Critical error during test execution: {}
+current_os
+Failed to expand command: {custom_command}
+Failed to read config file: {}
+Failed to resolve path: {}
+flaky_cases_found
+init_file_exists
+init_next_steps
+init_success
+init_use_force
+init_write_failed
+loading_test_matrix
+manifest_parse_failed
+manifest_read_failed
+matrix_runner_{}
+no_cases_to_run
+no_error_output
+project_dir_not_found
+project_root_detected
+report_header_failure
+running_as_single_runner
+running_test
+shutdown_signal
+status_allowed_failure
+status_failed
+status_passed
+status_skipped
+status_timeout
+test_failed
+test_failed_after_retries
+test_log
+test_no_binaries
+test_no_binaries_message
+test_passed
+test_passed_on_retry
+test_retrying
+test_summary_banner
+test_timeout
+test_timeout_message
+testing_crate
+unexpected_failure_banner

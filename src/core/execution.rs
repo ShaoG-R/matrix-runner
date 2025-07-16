@@ -52,11 +52,11 @@ pub async fn run_test_case(
                 Err(_) => {
                     println!(
                         "{}",
-                        t!("test_timeout", name = case_name, duration = duration.as_secs()).red()
+                        t!("run.test_timeout", name = case_name, timeout = duration.as_secs()).red()
                     );
                     Ok(TestResult::Failed {
                         case: case.clone(),
-                        output: t!("test_timeout_message").to_string(),
+                        output: t!("run.test_timeout_message").to_string(),
                         reason: FailureReason::Timeout,
                         duration,
                     })
@@ -82,7 +82,7 @@ pub async fn run_test_case(
                 if attempt > 1 {
                     println!(
                         "{}",
-                        t!("test_passed_on_retry", name = case_name, attempt = attempt - 1).green()
+                        t!("run.test_passed_on_retry", name = case_name, retries = attempt - 1).green()
                     );
                 }
                 return Ok(final_result);
@@ -94,12 +94,12 @@ pub async fn run_test_case(
                 if attempt < max_attempts {
                     println!(
                         "{}",
-                        t!("test_retrying", name = case_name, attempt = attempt, total = max_attempts).yellow()
+                        t!("run.test_retrying", name = case_name, attempt = attempt, retries = max_attempts - 1).yellow()
                     );
                 } else {
                     println!(
                         "{}",
-                        t!("test_failed_after_retries", name = case_name, retries = case.retries.unwrap_or(0)).red()
+                        t!("run.test_failed_after_retries", name = case_name, retries = case.retries.unwrap_or(0)).red()
                     );
                 }
                 last_result = Some(res);
@@ -134,7 +134,7 @@ async fn run_custom_command_case(
 ) -> Result<TestResult> {
     println!(
         "{}",
-        t!("running_test", name = case.name).blue()
+        t!("run.running_test", name = case.name).blue()
     );
 
     let start_time = Instant::now();
@@ -166,7 +166,7 @@ async fn run_custom_command_case(
     if status.success() {
         println!(
             "{}",
-            t!("test_passed", name = case.name, duration = duration.as_secs()).green()
+            t!("run.test_passed", name = &case.name, duration = &duration.as_secs_f64().to_string()).green()
         );
         Ok(TestResult::Passed {
             case,
@@ -177,7 +177,7 @@ async fn run_custom_command_case(
     } else {
         println!(
             "{}",
-            t!("test_failed", name = case.name, duration = duration.as_secs()).red()
+            t!("run.test_failed", name = &case.name, duration = &duration.as_secs_f64().to_string()).red()
         );
         Ok(TestResult::Failed {
             case,
@@ -199,11 +199,11 @@ async fn run_default_flow_case(
             if built_test.executable_path.as_os_str().is_empty() {
                 println!(
                     "{}",
-                    t!("test_no_binaries", name = case.name).yellow()
+                    t!("run.test_no_binaries", name = case.name).yellow()
                 );
                 return Ok(TestResult::Passed {
                     case,
-                    output: t!("test_no_binaries_message").to_string(),
+                    output: t!("run.test_no_binaries_message").to_string(),
                     duration: built_test.duration,
                     retries: 1,
                 });
@@ -217,7 +217,7 @@ async fn run_default_flow_case(
             } else {
                 println!(
                     "{}",
-                    t!("build_failed_unexpected", name = case.name).red()
+                    t!("run.build_failed_unexpected").red()
                 );
                 println!("  Error: {}", error_string);
                 TestResult::Failed {
@@ -261,7 +261,7 @@ async fn build_test_case(
 
     println!(
         "{}",
-        t!("building_test", name = case.name).blue()
+        t!("run.building_test", name = &case.name).blue()
     );
 
     let (status_res, output) = command::spawn_and_capture(cmd).await;
@@ -272,7 +272,7 @@ async fn build_test_case(
     if !status.success() {
         println!(
             "{}",
-            t!("build_failed", name = case.name, duration = build_duration.as_secs()).red()
+            t!("run.build_failed", duration = build_duration.as_secs_f64()).red()
         );
 
         // Format and return the error output
@@ -303,7 +303,7 @@ async fn build_test_case(
     let executable_path = test_binary.unwrap_or_default();
     println!(
         "{}",
-        t!("build_success", name = case.name, duration = build_duration.as_secs()).green()
+        t!("run.build_success", duration = build_duration.as_secs_f64()).green()
     );
 
     Ok(BuiltTest {
@@ -318,7 +318,7 @@ async fn run_built_test(built_test: BuiltTest, project_root: &PathBuf) -> Result
     let case = built_test.case.clone();
     println!(
         "{}",
-        t!("running_test", name = case.name).blue()
+        t!("run.running_test", name = case.name).blue()
     );
 
     let mut cmd = tokio::process::Command::new(&built_test.executable_path);
@@ -339,9 +339,9 @@ async fn run_built_test(built_test: BuiltTest, project_root: &PathBuf) -> Result
         println!(
             "{}",
             t!(
-                "test_passed",
-                name = case.name,
-                duration = total_duration.as_secs()
+                "run.test_passed",
+                name = &case.name,
+                duration = &total_duration.as_secs_f64().to_string()
             )
             .green()
         );
@@ -355,9 +355,9 @@ async fn run_built_test(built_test: BuiltTest, project_root: &PathBuf) -> Result
         println!(
             "{}",
             t!(
-                "test_failed",
-                name = case.name,
-                duration = total_duration.as_secs()
+                "run.test_failed",
+                name = &case.name,
+                duration = &total_duration.as_secs_f64().to_string()
             )
             .red()
         );
