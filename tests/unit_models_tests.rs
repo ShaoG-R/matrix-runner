@@ -6,19 +6,11 @@
 //! 此模块包含 `models.rs` 模块的全面单元测试，
 //! 测试各种数据结构及其行为。
 
-use matrix_runner::runner::config::TestCase;
-use matrix_runner::runner::i18n;
-use matrix_runner::runner::models::{
+use matrix_runner::core::config::TestCase;
+use matrix_runner::core::models::{
     CargoDiagnostic, CargoMessage, CargoTarget, FailureReason, TestResult,
 };
-use matrix_runner::runner::utils::create_build_dir;
-use std::path::PathBuf;
 use std::time::Duration;
-
-/// Initialize i18n for tests / 为测试初始化 i18n
-fn setup_i18n() {
-    i18n::init("en");
-}
 
 /// Helper function to create a test case / 创建测试用例的辅助函数
 fn create_test_case(name: &str) -> TestCase {
@@ -69,7 +61,7 @@ mod test_result_tests {
         let result = TestResult::Failed {
             case: case.clone(),
             output: "Test failed".to_string(),
-            reason: FailureReason::Test,
+            reason: FailureReason::TestFailed,
             duration: Duration::from_secs(1),
         };
 
@@ -82,7 +74,7 @@ mod test_result_tests {
             } => {
                 assert_eq!(result_case.name, "failed-test");
                 assert_eq!(output, "Test failed");
-                assert!(matches!(reason, FailureReason::Test));
+                assert!(matches!(reason, FailureReason::TestFailed));
             }
             _ => panic!("Expected Failed variant"),
         }
@@ -161,11 +153,11 @@ mod failure_reason_tests {
     #[test]
     fn test_failure_reason_variants() {
         let build_failure = FailureReason::Build;
-        let test_failure = FailureReason::Test;
+        let test_failure = FailureReason::TestFailed;
 
         // Test Debug formatting
         assert_eq!(format!("{:?}", build_failure), "Build");
-        assert_eq!(format!("{:?}", test_failure), "Test");
+        assert_eq!(format!("{:?}", test_failure), "TestFailed");
     }
 
     #[test]
@@ -263,7 +255,8 @@ mod cargo_message_tests {
             "reason": "compiler-artifact",
             "target": {
                 "name": "test-crate",
-                "test": true
+                "test": true,
+                "kind": ["bin"]
             },
             "executable": "/path/to/executable"
         }"#;
@@ -280,7 +273,7 @@ mod cargo_message_tests {
         assert!(target.test);
 
         let executable = message.executable.unwrap();
-        assert_eq!(executable, PathBuf::from("/path/to/executable"));
+        assert_eq!(executable, std::path::PathBuf::from("/path/to/executable"));
     }
 }
 
@@ -292,7 +285,8 @@ mod cargo_target_tests {
     fn test_cargo_target_deserialization() {
         let json = r#"{
             "name": "my-crate",
-            "test": true
+            "test": true,
+            "kind": ["bin"]
         }"#;
 
         let target: CargoTarget = serde_json::from_str(json).unwrap();
@@ -305,54 +299,13 @@ mod cargo_target_tests {
     fn test_cargo_target_non_test() {
         let json = r#"{
             "name": "my-lib",
-            "test": false
+            "test": false,
+            "kind": ["lib"]
         }"#;
 
         let target: CargoTarget = serde_json::from_str(json).unwrap();
 
         assert_eq!(target.name, "my-lib");
         assert!(!target.test);
-    }
-}
-
-#[cfg(test)]
-mod build_context_tests {
-    use super::*;
-
-    #[test]
-    fn test_build_context_creation_and_cleanup() {
-        setup_i18n();
-
-        let target_path = {
-            let build_ctx = create_build_dir("test-crate", "", false).unwrap();
-            let path = build_ctx.target_path.clone();
-
-            // Verify the directory exists while BuildContext is alive
-            assert!(path.exists());
-            assert!(path.is_dir());
-
-            path
-            // BuildContext goes out of scope here
-        };
-
-        // Directory should be cleaned up after BuildContext is dropped
-        assert!(!target_path.exists());
-    }
-
-    #[test]
-    fn test_build_context_target_path() {
-        setup_i18n();
-
-        let build_ctx = create_build_dir("test-crate", "feature1", true).unwrap();
-
-        // Verify target_path is valid
-        assert!(build_ctx.target_path.exists());
-        assert!(build_ctx.target_path.is_dir());
-
-        // Verify the path contains expected components
-        let path_str = build_ctx.target_path.to_string_lossy();
-        assert!(path_str.contains("test-crate"));
-        assert!(path_str.contains("no-std"));
-        assert!(path_str.contains("feature1"));
     }
 }

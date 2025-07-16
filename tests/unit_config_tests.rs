@@ -6,7 +6,7 @@
 //! 此模块包含 `config.rs` 模块的全面单元测试，
 //! 测试 `TestCase` 和 `TestMatrix` 结构体及其序列化/反序列化。
 
-use matrix_runner::runner::config::{TestCase, TestMatrix};
+use matrix_runner::core::config::{TestCase, TestMatrix};
 
 #[cfg(test)]
 mod test_case_tests {

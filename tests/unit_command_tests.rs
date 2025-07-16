@@ -6,13 +6,14 @@
 //! 此模块包含 `command.rs` 模块的全面单元测试，
 //! 测试 `format_build_error_output` 和 `spawn_and_capture` 函数。
 
-use matrix_runner::runner::command::{format_build_error_output, spawn_and_capture};
-use matrix_runner::runner::i18n;
+use matrix_runner::infra::command::{format_build_error_output, spawn_and_capture};
 use tokio::process::Command;
 
 /// Initialize i18n for tests / 为测试初始化 i18n
 fn setup_i18n() {
-    i18n::init("en");
+    // i18n is now handled by the rust_i18n macro and system locale detection.
+    // Initialization is not needed here for unit tests.
+    rust_i18n::set_locale("en");
 }
 
 #[cfg(test)]
