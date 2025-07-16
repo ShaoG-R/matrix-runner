@@ -56,3 +56,21 @@ status_skipped = "SKIPPED"
 status_allowed_failure = "ALLOWED FAILURE"
 unexpected_failure_banner = "UNEXPECTED FAILURE DETECTED"
 report_header_failure = "Failure in test: {name}"
+
+[cli]
+about = "A powerful, configuration-driven test executor for Rust projects."
+
+[cli.run]
+about = "Run tests according to the test matrix configuration."
+jobs = "Number of parallel jobs to run. Defaults to half of the CPU cores + 1."
+config = "Path to the test matrix configuration file."
+project_dir = "Path to the project directory."
+total_runners = "Total number of distributed runners (for CI)."
+runner_index = "Index of this runner (0-based, for CI)."
+html = "Path for HTML report output."
+
+[cli.init]
+about = "Initialize a new test matrix configuration."
+output = "Path for the new configuration file."
+force = "Force overwrite if the file exists."
+lang = "Specify the language for error messages."

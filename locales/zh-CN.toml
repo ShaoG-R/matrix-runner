@@ -56,3 +56,21 @@ status_skipped = "跳过"
 status_allowed_failure = "允许失败"
 unexpected_failure_banner = "检测到意外失败"
 report_header_failure = "测试失败：{name}"
+
+[cli]
+about = "一个强大的、配置驱动的 Rust 项目测试执行器。"
+
+[cli.run]
+about = "根据测试矩阵配置运行测试。"
+jobs = "要运行的并行任务数量。默认为 CPU 核心数的一半 + 1。"
+config = "测试矩阵配置文件的路径。"
+project_dir = "项目目录的路径。"
+total_runners = "分布式运行器的总数（用于 CI）。"
+runner_index = "此运行器的索引（从 0 开始，用于 CI）。"
+html = "HTML 报告输出的路径。"
+
+[cli.init]
+about = "初始化一个新的测试矩阵配置。"
+output = "新配置文件的路径。"
+force = "如果文件存在，则强制覆盖。"
+lang = "指定错误消息的语言。"

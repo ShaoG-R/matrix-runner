@@ -8,110 +8,128 @@
 
 pub mod commands;
 
-use clap::{Parser, Subcommand};
+use crate::infra::t;
+use clap::{Arg, ArgMatches, Command};
 use std::path::PathBuf;
 
-/// A powerful, configuration-driven test executor for Rust projects.
-/// 一个强大的、配置驱动的 Rust 项目测试执行器。
-#[derive(Parser)]
-#[clap(version, about, long_about = None)]
-pub struct Cli {
-    /// The subcommand to run.
-    /// 要运行的子命令。
-    #[clap(subcommand)]
-    pub command: Commands,
-}
-
-/// The available commands.
-/// 可用的命令。
-#[derive(Subcommand)]
-pub enum Commands {
-    /// Run tests according to the test matrix configuration.
-    /// 根据测试矩阵配置运行测试。
-    Run {
-        /// Number of parallel jobs to run. Defaults to half of the CPU cores + 1.
-        /// 要运行的并行任务数量。默认为 CPU 核心数的一半 + 1。
-        #[clap(short, long)]
-        jobs: Option<usize>,
-
-        /// Path to the test matrix configuration file.
-        /// 测试矩阵配置文件的路径。
-        #[clap(short, long, default_value = "TestMatrix.toml")]
-        config: PathBuf,
-
-        /// Path to the project directory.
-        /// 项目目录的路径。
-        #[clap(short, long, default_value = ".")]
-        project_dir: PathBuf,
-
-        /// Total number of distributed runners (for CI).
-        /// 分布式运行器的总数（用于 CI）。
-        #[clap(long)]
-        total_runners: Option<usize>,
-
-        /// Index of this runner (0-based, for CI).
-        /// 此运行器的索引（从 0 开始，用于 CI）。
-        #[clap(long)]
-        runner_index: Option<usize>,
-
-        /// Path for HTML report output.
-        /// HTML 报告输出的路径。
-        #[clap(long)]
-        html: Option<PathBuf>,
-    },
-
-    /// Initialize a new test matrix configuration.
-    /// 初始化一个新的测试矩阵配置。
-    Init {
-        /// Path for the new configuration file.
-        /// 新配置文件的路径。
-        #[clap(short, long, default_value = "TestMatrix.toml")]
-        output: PathBuf,
-
-        /// Force overwrite if the file exists.
-        /// 如果文件存在，则强制覆盖。
-        #[clap(short, long)]
-        force: bool,
-
-        /// Specify the language for error messages.
-        /// 指定错误消息的语言。
-        #[clap(long, default_value = "en")]
-        lang: String,
-    },
-}
-
-/// Parses the command line arguments and returns the CLI structure.
-/// 解析命令行参数并返回 CLI 结构。
-pub fn parse_args() -> Cli {
-    Cli::parse()
+/// Builds the CLI structure using clap's builder pattern.
+///
+/// This function constructs the entire command-line interface dynamically,
+/// allowing for internationalization of help messages and descriptions.
+pub fn build_cli() -> Command {
+    Command::new("matrix-runner")
+        .about(t!("cli.about").to_string())
+        .version(env!("CARGO_PKG_VERSION"))
+        .subcommand_required(true)
+        .arg_required_else_help(true)
+        .subcommand(
+            Command::new("run")
+                .about(t!("cli.run.about").to_string())
+                .arg(
+                    Arg::new("jobs")
+                        .short('j')
+                        .long("jobs")
+                        .help(t!("cli.run.jobs").to_string())
+                        .value_parser(clap::value_parser!(usize)),
+                )
+                .arg(
+                    Arg::new("config")
+                        .short('c')
+                        .long("config")
+                        .help(t!("cli.run.config").to_string())
+                        .default_value("TestMatrix.toml")
+                        .value_parser(clap::value_parser!(PathBuf)),
+                )
+                .arg(
+                    Arg::new("project_dir")
+                        .short('p')
+                        .long("project-dir")
+                        .help(t!("cli.run.project_dir").to_string())
+                        .default_value(".")
+                        .value_parser(clap::value_parser!(PathBuf)),
+                )
+                .arg(
+                    Arg::new("total_runners")
+                        .long("total-runners")
+                        .help(t!("cli.run.total_runners").to_string())
+                        .value_parser(clap::value_parser!(usize)),
+                )
+                .arg(
+                    Arg::new("runner_index")
+                        .long("runner-index")
+                        .help(t!("cli.run.runner_index").to_string())
+                        .value_parser(clap::value_parser!(usize)),
+                )
+                .arg(
+                    Arg::new("html")
+                        .long("html")
+                        .help(t!("cli.run.html").to_string())
+                        .value_parser(clap::value_parser!(PathBuf)),
+                ),
+        )
+        .subcommand(
+            Command::new("init")
+                .about(t!("cli.init.about").to_string())
+                .arg(
+                    Arg::new("output")
+                        .short('o')
+                        .long("output")
+                        .help(t!("cli.init.output").to_string())
+                        .default_value("TestMatrix.toml")
+                        .value_parser(clap::value_parser!(PathBuf)),
+                )
+                .arg(
+                    Arg::new("force")
+                        .short('f')
+                        .long("force")
+                        .help(t!("cli.init.force").to_string())
+                        .action(clap::ArgAction::SetTrue),
+                )
+                .arg(
+                    Arg::new("lang")
+                        .long("lang")
+                        .help(t!("cli.init.lang").to_string())
+                        .default_value("en")
+                        .value_parser(clap::value_parser!(String)),
+                ),
+        )
 }
 
 /// Process the parsed CLI command and dispatch to the appropriate handler.
-/// 处理解析后的 CLI 命令并分派到适当的处理程序。
-pub async fn process_command(cli: Cli) -> anyhow::Result<()> {
-    match cli.command {
-        Commands::Run {
-            jobs,
-            config,
-            project_dir,
-            total_runners,
-            runner_index,
-            html,
-        } => {
-            crate::cli::commands::run::execute(
-                jobs,
-                config,
-                project_dir,
-                total_runners,
-                runner_index,
-                html,
-            )
-            .await
+///
+/// This function takes the matches from the parsed command line and calls the
+/// corresponding command logic.
+pub async fn process_command(matches: ArgMatches) -> anyhow::Result<()> {
+    match matches.subcommand() {
+        Some(("run", sub_matches)) => {
+            let jobs = sub_matches.get_one::<usize>("jobs").copied();
+            let config = sub_matches
+                .get_one::<PathBuf>("config")
+                .expect("default value should be present")
+                .clone();
+            let project_dir = sub_matches
+                .get_one::<PathBuf>("project_dir")
+                .expect("default value should be present")
+                .clone();
+            let total_runners = sub_matches.get_one::<usize>("total_runners").copied();
+            let runner_index = sub_matches.get_one::<usize>("runner_index").copied();
+            let html = sub_matches.get_one::<PathBuf>("html").cloned();
+
+            commands::run::execute(jobs, config, project_dir, total_runners, runner_index, html).await
         }
-        Commands::Init {
-            output,
-            force,
-            lang,
-        } => crate::cli::commands::init::execute(output, force, lang).await,
+        Some(("init", sub_matches)) => {
+            let output = sub_matches
+                .get_one::<PathBuf>("output")
+                .expect("default value should be present")
+                .clone();
+            let force = sub_matches.get_flag("force");
+            let lang = sub_matches
+                .get_one::<String>("lang")
+                .expect("default value should be present")
+                .clone();
+
+            commands::init::execute(output, force, lang).await
+        }
+        _ => unreachable!("clap should have handled this because subcommand_required is set"),
     }
 } 

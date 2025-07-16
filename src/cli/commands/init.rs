@@ -66,9 +66,9 @@ pub async fn execute(output: PathBuf, force: bool, lang: String) -> Result<()> {
     if output.exists() && !force {
         println!(
             "{}",
-            t!("init.file_exists", locale = &lang, path = output.display()).red()
+            t!("init.file_exists", path = output.display()).red()
         );
-        println!("{}", t!("init.use_force", locale = &lang).yellow());
+        println!("{}", t!("init.use_force").yellow());
         return Ok(());
     }
 
@@ -80,7 +80,6 @@ pub async fn execute(output: PathBuf, force: bool, lang: String) -> Result<()> {
                     "{}",
                     t!(
                         "init.create_parent_dir_failed",
-                        locale = &lang,
                         path = parent.display()
                     )
                 )
@@ -92,15 +91,15 @@ pub async fn execute(output: PathBuf, force: bool, lang: String) -> Result<()> {
     fs::write(&output, DEFAULT_CONFIG).with_context(|| {
         format!(
             "{}",
-            t!("init.write_failed", locale = &lang, path = output.display())
+            t!("init.write_failed", path = output.display())
         )
     })?;
 
     println!(
         "{}",
-        t!("init.success", locale = &lang, path = output.display()).green()
+        t!("init.success", path = output.display()).green()
     );
-    println!("{}", t!("init.next_steps", locale = &lang));
+    println!("{}", t!("init.next_steps"));
 
     Ok(())
 } 

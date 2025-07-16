@@ -28,5 +28,33 @@ pub use core::models;
 pub use core::config;
 pub use core::execution;
 
+/// Initializes the application's internationalization (i18n) based on the system locale.
+///
+/// This function detects the user's system locale and sets the appropriate
+/// language for the application's user interface. It attempts to match the full
+/// locale (e.g., "zh-CN"), then just the language code (e.g., "en"), and
+/// finally falls back to the default language ("en").
+pub fn init() {
+    // Detect system locale and set it for i18n.
+    // Fallback to "en" if detection fails.
+    let locale = sys_locale::get_locale().unwrap_or_else(|| "en".to_string());
+    let available_locales = rust_i18n::available_locales!();
+
+    // Try to match the full locale first (e.g., "zh-CN")
+    // Then try to match the language part only (e.g., "en" from "en-US")
+    // Finally, fall back to "en"
+    let lang = if available_locales.contains(&locale.as_str()) {
+        &locale
+    } else {
+        locale
+            .split('-')
+            .next()
+            .filter(|lang_code| available_locales.contains(lang_code))
+            .unwrap_or("en")
+    };
+
+    rust_i18n::set_locale(lang);
+}
+
 // Initialize i18n
-rust_i18n::i18n!("locales");
+rust_i18n::i18n!("locales", fallback = "en");
