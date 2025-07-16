@@ -36,6 +36,7 @@ use crate::{
 /// * `total_runners` - Total number of distributed runners (for CI)
 /// * `runner_index` - Index of this runner (for CI)
 /// * `html` - Optional path for HTML report output
+/// * `lang` - Optional language code for the test matrix (e.g., "en", "zh")
 ///
 /// # Returns
 /// A Result indicating success or failure of the command execution
@@ -46,10 +47,13 @@ pub async fn execute(
     total_runners: Option<usize>,
     runner_index: Option<usize>,
     html: Option<PathBuf>,
+    lang: Option<String>,
 ) -> Result<()> {
     let (test_matrix, config_path) = setup_and_parse_config(&config)?;
-    let locale = test_matrix.language.clone();
-    rust_i18n::set_locale(& locale);
+
+    // Set locale based on priority: CLI > config file > system default
+    let locale = lang.unwrap_or(test_matrix.language.clone());
+    rust_i18n::set_locale(&locale);
 
     let (project_root, crate_name) = prepare_environment(&project_dir, &locale).await?;
 
@@ -298,7 +302,7 @@ async fn run_tests(
                 has_unexpected_failures = true;
                 models::TestResult::Failed {
                     case: crate::core::config::TestCase::default(),
-                    output: format!("Critical error during test execution: {}", e),
+                    output: t!("run.critical_error", locale = locale, error = e.to_string()).to_string(),
                     reason: FailureReason::BuildFailed,
                     duration: Duration::default(),
                 }

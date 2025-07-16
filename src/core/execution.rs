@@ -8,16 +8,15 @@
 //! 它处理从构建到执行的完整测试生命周期，
 //! 包括超时、重试和结果收集。
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use colored::*;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
-use tokio::time::timeout;
 
 use crate::{
     core::{
         config::TestCase,
-        models::{BuildContext, BuiltTest, FailureReason, TestResult},
+        models::{BuiltTest, FailureReason, TestResult},
     },
     infra::{command, t},
 };

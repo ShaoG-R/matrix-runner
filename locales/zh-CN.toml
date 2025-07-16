@@ -60,6 +60,9 @@ report_header_failure = "测试失败：{name}"
 [cli]
 about = "一个强大的、配置驱动的 Rust 项目测试执行器。"
 
+[cli.lang]
+help = "设置界面语言。"
+
 [cli.run]
 about = "根据测试矩阵配置运行测试。"
 jobs = "要运行的并行任务数量。默认为 CPU 核心数的一半 + 1。"
@@ -68,6 +71,10 @@ project_dir = "项目目录的路径。"
 total_runners = "分布式运行器的总数（用于 CI）。"
 runner_index = "此运行器的索引（从 0 开始，用于 CI）。"
 html = "HTML 报告输出的路径。"
+filtered_arch_cases = "{filtered} 个案例因架构不匹配而被过滤，总共有 {total} 个案例。"
+running_as_split_runner = "作为第 {index} 个运行器（共 {total} 个），已分配 {count} 个案例。"
+running_as_single_runner = "作为单个运行器运行。"
+critical_error = "测试执行期间发生严重错误：{error}"
 
 [cli.init]
 about = "初始化一个新的测试矩阵配置。"

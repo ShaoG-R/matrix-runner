@@ -22,6 +22,13 @@ pub fn build_cli() -> Command {
         .version(env!("CARGO_PKG_VERSION"))
         .subcommand_required(true)
         .arg_required_else_help(true)
+        .arg(
+            Arg::new("lang")
+                .long("lang")
+                .help(t!("cli.lang.help").to_string())
+                .global(true)
+                .value_parser(clap::value_parser!(String)),
+        )
         .subcommand(
             Command::new("run")
                 .about(t!("cli.run.about").to_string())
@@ -84,13 +91,6 @@ pub fn build_cli() -> Command {
                         .long("force")
                         .help(t!("cli.init.force").to_string())
                         .action(clap::ArgAction::SetTrue),
-                )
-                .arg(
-                    Arg::new("lang")
-                        .long("lang")
-                        .help(t!("cli.init.lang").to_string())
-                        .default_value("en")
-                        .value_parser(clap::value_parser!(String)),
                 ),
         )
 }
@@ -100,6 +100,8 @@ pub fn build_cli() -> Command {
 /// This function takes the matches from the parsed command line and calls the
 /// corresponding command logic.
 pub async fn process_command(matches: ArgMatches) -> anyhow::Result<()> {
+    let lang = matches.get_one::<String>("lang").cloned();
+
     match matches.subcommand() {
         Some(("run", sub_matches)) => {
             let jobs = sub_matches.get_one::<usize>("jobs").copied();
@@ -115,7 +117,16 @@ pub async fn process_command(matches: ArgMatches) -> anyhow::Result<()> {
             let runner_index = sub_matches.get_one::<usize>("runner_index").copied();
             let html = sub_matches.get_one::<PathBuf>("html").cloned();
 
-            commands::run::execute(jobs, config, project_dir, total_runners, runner_index, html).await
+            commands::run::execute(
+                jobs,
+                config,
+                project_dir,
+                total_runners,
+                runner_index,
+                html,
+                lang,
+            )
+            .await
         }
         Some(("init", sub_matches)) => {
             let output = sub_matches
@@ -123,10 +134,6 @@ pub async fn process_command(matches: ArgMatches) -> anyhow::Result<()> {
                 .expect("default value should be present")
                 .clone();
             let force = sub_matches.get_flag("force");
-            let lang = sub_matches
-                .get_one::<String>("lang")
-                .expect("default value should be present")
-                .clone();
 
             commands::init::execute(output, force, lang).await
         }

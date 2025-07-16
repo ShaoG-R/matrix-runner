@@ -59,9 +59,11 @@ command = "cargo run --example demo"
 ///
 /// # Returns
 /// A Result indicating success or failure of the command execution
-pub async fn execute(output: PathBuf, force: bool, lang: String) -> Result<()> {
-    rust_i18n::set_locale(&lang);
-    
+pub async fn execute(output: PathBuf, force: bool, lang: Option<String>) -> Result<()> {
+    if let Some(l) = lang {
+        rust_i18n::set_locale(&l);
+    }
+
     // Check if file already exists
     if output.exists() && !force {
         println!(
