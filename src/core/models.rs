@@ -84,7 +84,44 @@ impl TestResult {
     /// A failure is "unexpected" if it's a `Failed` variant and the current OS
     /// is not in the test case's `allow_failure` list.
     pub fn is_unexpected_failure(&self) -> bool {
-        matches!(self, TestResult::Failed { reason, .. } if *reason != FailureReason::TestFailed)
+        match self {
+            TestResult::Failed { case, .. } => {
+                !case.allow_failure.iter().any(|s| s == std::env::consts::OS)
+            }
+            _ => false, // Only failures can be unexpected.
+        }
+    }
+
+    /// Checks if the test result is a failure that was explicitly allowed for the current platform.
+    pub fn is_allowed_failure(&self) -> bool {
+        match self {
+            TestResult::Failed { case, .. } => {
+                case.allow_failure.iter().any(|s| s == std::env::consts::OS)
+            }
+            _ => false,
+        }
+    }
+
+    /// Checks if the test result is any kind of failure.
+    pub fn is_failure(&self) -> bool {
+        matches!(self, TestResult::Failed { .. })
+    }
+
+    /// Gets the appropriate CSS class for the test status.
+    pub fn get_status_class(&self) -> &str {
+        match self {
+            TestResult::Passed { .. } => "status-Passed",
+            TestResult::Failed { reason, .. } => {
+                if self.is_allowed_failure() {
+                    "status-Allowed-Failure"
+                } else if *reason == FailureReason::Timeout {
+                    "status-Timeout"
+                } else {
+                    "status-Failed"
+                }
+            }
+            TestResult::Skipped => "status-Skipped",
+        }
     }
 
     /// Gets the name of the test case. Returns "Skipped" for skipped tests.

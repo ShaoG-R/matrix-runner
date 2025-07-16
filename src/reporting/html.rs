@@ -11,7 +11,8 @@ use anyhow::Result;
 use std::fs;
 use std::path::Path;
 
-use crate::core::models::{self, TestResult};
+use crate::core::models::TestResult;
+use crate::infra::t;
 use crate::reporting::console::get_error_output_from_result;
 
 /// Embedded CSS styles for HTML reports / HTML 报告的嵌入式 CSS 样式
@@ -32,6 +33,8 @@ const HTML_SCRIPT: &str = include_str!("assets/report.js");
 ///               要包含在报告中的测试结果切片
 /// * `output_path` - The file path where the HTML report will be saved
 ///                   保存 HTML 报告的文件路径
+/// * `locale` - The locale to use for internationalization
+///              用于国际化使用的语言环境
 ///
 /// # Returns / 返回值
 /// * `Result<()>` - Success or error information
@@ -48,85 +51,137 @@ const HTML_SCRIPT: &str = include_str!("assets/report.js");
 pub fn generate_html_report(
     results: &[TestResult],
     output_path: &Path,
+    locale: &str,
 ) -> Result<()> {
     let mut html = String::new();
-    html.push_str("<!DOCTYPE html><html><head><title>Test Report</title>");
+    html.push_str(&format!(
+        "<!DOCTYPE html><html><head><title>{}</title>",
+        t!("html_report.title", locale = locale)
+    ));
     html.push_str("<style>");
     html.push_str(HTML_STYLE);
     html.push_str("</style>");
-    html.push_str("</head><body><h1>Test Matrix Report</h1>");
+    html.push_str("</head><body>");
+    html.push_str(&format!(
+        "<h1>{}</h1>",
+        t!("html_report.main_header", locale = locale)
+    ));
     
     // Add summary statistics
     let total = results.len();
-    let passed = results.iter().filter(|r| matches!(r, TestResult::Passed { .. })).count();
-    let failed = results.iter().filter(|r| matches!(r, TestResult::Failed { .. })).count();
-    let skipped = results.iter().filter(|r| matches!(r, TestResult::Skipped)).count();
-    
-    html.push_str("<div class='summary'>");
-    html.push_str(&format!("<div class='stat'>Total: <span>{}</span></div>", total));
-    html.push_str(&format!("<div class='stat passed'>Passed: <span>{}</span></div>", passed));
-    html.push_str(&format!("<div class='stat failed'>Failed: <span>{}</span></div>", failed));
-    html.push_str(&format!("<div class='stat skipped'>Skipped: <span>{}</span></div>", skipped));
+    let passed = results
+        .iter()
+        .filter(|r| matches!(r, TestResult::Passed { .. }))
+        .count();
+    let failed = results
+        .iter()
+        .filter(|r| r.is_failure())
+        .count();
+    let skipped = results
+        .iter()
+        .filter(|r| matches!(r, TestResult::Skipped))
+        .count();
+
+    html.push_str("<div class='summary-container'>");
+    html.push_str(&format!(
+        "<div class='summary-item'><span class='count'>{}</span><span class='label'>{}</span></div>",
+        total,
+        t!("html_report.summary.total", locale = locale)
+    ));
+    html.push_str(&format!(
+        "<div class='summary-item'><span class='count passed-text'>{}</span><span class='label'>{}</span></div>",
+        passed,
+        t!("html_report.summary.passed", locale = locale)
+    ));
+    html.push_str(&format!(
+        "<div class='summary-item'><span class='count failed-text'>{}</span><span class='label'>{}</span></div>",
+        failed,
+        t!("html_report.summary.failed", locale = locale)
+    ));
+    html.push_str(&format!(
+        "<div class='summary-item'><span class='count skipped-text'>{}</span><span class='label'>{}</span></div>",
+        skipped,
+        t!("html_report.summary.skipped", locale = locale)
+    ));
     html.push_str("</div>");
 
+
     // Add results table
-    html.push_str("<table><thead><tr><th>#</th><th>Name</th><th>Result</th><th>Time (s)</th></tr></thead><tbody>");
+    html.push_str("<table><thead><tr>");
+    html.push_str(&format!(
+        "<th>{}</th>",
+        t!("html_report.table.header.name", locale = locale)
+    ));
+    html.push_str(&format!(
+        "<th class='status-col'>{}</th>",
+        t!("html_report.table.header.status", locale = locale)
+    ));
+    html.push_str(&format!(
+        "<th class='duration-cell'>{}</th>",
+        t!("html_report.table.header.duration", locale = locale)
+    ));
+    html.push_str(&format!(
+        "<th class='retries-cell'>{}</th>",
+        t!("html_report.table.header.retries", locale = locale)
+    ));
+    html.push_str("</tr></thead><tbody>");
+
 
     for (i, result) in results.iter().enumerate() {
-        let (status_class, status_text, duration_text, error_details) = match result {
-            models::TestResult::Passed { duration, .. } => (
-                "passed",
-                "Passed",
-                format!("{:.2}", duration.as_secs_f64()),
-                String::new(),
-            ),
-            models::TestResult::Failed {
-                reason,
-                duration,
-                ..
-            } => {
-                let reason_text = match reason {
-                    models::FailureReason::Build | models::FailureReason::BuildFailed => "Build",
-                    models::FailureReason::TestFailed => "Test",
-                    models::FailureReason::Timeout => "Timeout",
-                    models::FailureReason::CustomCommand => "Command",
-                };
-                let error_output = get_error_output_from_result(result, "en"); // Assuming English for now
-                let escaped_output = escape_html(&error_output);
-                (
-                    "failed",
-                    "Failed",
-                    format!("{:.2}", duration.as_secs_f64()),
-                    format!(
-                        "<div class='error-details'><strong>Reason: {}</strong><pre>{}</pre></div>",
-                        reason_text, escaped_output
-                    ),
-                )
+        let status_str = result.get_status_str(locale);
+        let status_class = result.get_status_class();
+        let duration_str = result
+            .get_duration()
+            .map(|d| format!("{:.2}s", d.as_secs_f64()))
+            .unwrap_or_else(|| "N/A".to_string());
+        
+        let retries_str = {
+            let retries = result.get_retries();
+            if retries > 1 {
+                format!("{}", retries - 1)
+            } else {
+                String::new()
             }
-            models::TestResult::Skipped => ("skipped", "Skipped", "N/A".to_string(), String::new()),
         };
 
+        let output_id = format!("output-{}", i);
+        let error_details = if let TestResult::Failed { .. } = result {
+            let error_output = get_error_output_from_result(result, locale);
+            let escaped_output = escape_html(&error_output);
+            format!(
+                "<tr id='{}' style='display:none;'><td colspan='4'><pre class='output-content'>{}</pre></td></tr>",
+                output_id,
+                escaped_output
+            )
+        } else {
+            String::new()
+        };
+
+        let output_toggle = if result.is_failure() {
+            format!("<div class='output-toggle' onclick=\"toggleOutput('{}')\">{}</div>", output_id, t!("html_report.toggle_output", locale=locale))
+        } else {
+            String::new()
+        };
+        
+        html.push_str("<tr>");
+        html.push_str(&format!("<td>{}</td>", result.case_name()));
         html.push_str(&format!(
-            "<tr class='{}' onclick='toggleError(this)'><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
-            status_class,
-            i + 1,
-            result.case_name(),
-            status_text,
-            duration_text
+            "<td class='status-col'><div class='status-cell {}'>{}</div>{}</td>",
+            status_class, status_str, output_toggle
         ));
-        if !error_details.is_empty() {
-            html.push_str(&format!(
-                "<tr class='error-row'><td colspan='4'>{}</td></tr>",
-                error_details
-            ));
-        }
+        html.push_str(&format!(
+            "<td class='duration-cell'>{}</td>",
+            duration_str
+        ));
+        html.push_str(&format!("<td class='retries-cell'>{}</td>", retries_str));
+        html.push_str("</tr>");
+        html.push_str(&error_details);
     }
 
     html.push_str("</tbody></table>");
     html.push_str("<script>");
     html.push_str(HTML_SCRIPT);
-    html.push_str("</script>");
-    html.push_str("</body></html>");
+    html.push_str("</script></body></html>");
 
     fs::write(output_path, html)?;
     Ok(())

@@ -42,6 +42,8 @@ build_failed = "构建失败，用时 {duration}。"
 build_log = "构建日志："
 test_log = "测试日志："
 no_error_output = "未捕获到错误输出。"
+html_report_generating = "正在生成 HTML 报告于: {path}"
+html_report_failed = "生成 HTML 报告失败:"
 compiler_error_parse_failed = "无法解析特定的编译器错误。以下是原始输出片段："
 build_failed_unexpected = "构建意外失败。"
 test_no_binaries = "未找到测试用例 '{name}' 的二进制文件"
@@ -56,6 +58,25 @@ status_skipped = "跳过"
 status_allowed_failure = "允许失败"
 unexpected_failure_banner = "检测到意外失败"
 report_header_failure = "测试失败：{name}"
+
+[html_report]
+title = "测试矩阵报告"
+main_header = "测试矩阵报告"
+toggle_output = "切换输出"
+
+[html_report.summary]
+total = "总计"
+passed = "通过"
+failed = "失败"
+skipped = "跳过"
+
+
+[html_report.table.header]
+name = "名称"
+status = "状态"
+duration = "耗时"
+retries = "重试"
+
 
 [cli]
 about = "一个强大的、配置驱动的 Rust 项目测试执行器。"

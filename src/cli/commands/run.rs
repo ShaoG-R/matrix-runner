@@ -133,9 +133,20 @@ pub async fn execute(
     print_summary(&final_results, &locale);
 
     if let Some(report_path) = &html {
-        println!("\nGenerating HTML report at: {}", report_path.display());
-        if let Err(e) = generate_html_report(&final_results, report_path) {
-            eprintln!("{} {}", "Failed to generate HTML report:".red(), e);
+        println!(
+            "\n{}",
+            t!(
+                "run.html_report_generating",
+                locale = &locale,
+                path = report_path.display()
+            )
+        );
+        if let Err(e) = generate_html_report(&final_results, report_path, &locale) {
+            eprintln!(
+                "{} {}",
+                t!("run.html_report_failed", locale = &locale).red(),
+                e
+            );
         }
     }
 

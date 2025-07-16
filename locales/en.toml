@@ -42,6 +42,8 @@ build_failed = "Build failed in {duration}."
 build_log = "Build Log:"
 test_log = "Test Log:"
 no_error_output = "No error output captured."
+html_report_generating = "Generating HTML report at: {path}"
+html_report_failed = "Failed to generate HTML report:"
 compiler_error_parse_failed = "Could not parse specific compiler errors. Raw output snippet:"
 build_failed_unexpected = "Build failed unexpectedly."
 test_no_binaries = "No binaries found for test case '{name}'"
@@ -56,6 +58,23 @@ status_skipped = "SKIPPED"
 status_allowed_failure = "ALLOWED FAILURE"
 unexpected_failure_banner = "UNEXPECTED FAILURE DETECTED"
 report_header_failure = "Failure in test: {name}"
+
+[html_report]
+title = "Test Matrix Report"
+main_header = "Test Matrix Report"
+toggle_output = "Toggle Output"
+
+[html_report.summary]
+total = "Total"
+passed = "Passed"
+failed = "Failed"
+skipped = "Skipped"
+
+[html_report.table.header]
+name = "Name"
+status = "Status"
+duration = "Duration"
+retries = "Retries"
 
 [cli]
 about = "A powerful, configuration-driven test executor for Rust projects."
