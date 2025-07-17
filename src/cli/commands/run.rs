@@ -10,7 +10,8 @@ use anyhow::{Context, Result};
 use colored::*;
 use futures::{stream, StreamExt};
 use std::{env, fs, path::PathBuf, time::Duration};
-use tokio::signal;
+use tempfile::TempDir;
+use tokio::{signal, sync::mpsc};
 use tokio_util::sync::CancellationToken;
 
 use crate::{
@@ -126,14 +127,29 @@ pub async fn execute(
         return Ok(());
     }
 
+    let (temp_dir_tx, mut temp_dir_rx) = mpsc::unbounded_channel::<TempDir>();
+    let collector_handle = tokio::spawn(async move {
+        let mut dirs = Vec::new();
+        while let Some(dir) = temp_dir_rx.recv().await {
+            dirs.push(dir);
+        }
+        dirs
+    });
+
     let (final_results, has_unexpected_failures) = run_tests(
         plan.cases_to_run,
         jobs.unwrap_or(num_cpus::get() / 2 + 1),
         &project_root,
         &crate_name,
         overall_stop_token,
+        temp_dir_tx.clone(),
     )
     .await?;
+
+    drop(temp_dir_tx);
+    let _temp_dirs = collector_handle
+        .await
+        .context("Failed to collect temporary directories")?;
 
     print_summary(&final_results, &locale);
 
@@ -253,6 +269,7 @@ async fn run_tests(
     project_root: &PathBuf,
     crate_name: &str,
     overall_stop_token: CancellationToken,
+    temp_dir_tx: mpsc::UnboundedSender<TempDir>,
 ) -> Result<(
     Vec<models::TestResult>,
     bool,
@@ -266,13 +283,13 @@ async fn run_tests(
         let project_root = project_root.clone();
         let crate_name = crate_name.to_string();
         let is_flaky = case.allow_failure.iter().any(|os| os == current_os);
+        let temp_dir_tx = temp_dir_tx.clone();
 
         async move {
             let case_clone_for_error = case.clone();
-            let mut handle =
-                tokio::spawn(
-                    async move { run_test_case(case, &project_root, &crate_name).await },
-                );
+            let mut handle = tokio::spawn(async move {
+                run_test_case(case, &project_root, &crate_name, temp_dir_tx).await
+            });
 
             let result = tokio::select! {
                 biased;

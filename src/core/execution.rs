@@ -12,11 +12,13 @@ use anyhow::{Context, Result};
 use colored::*;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
+use tempfile::TempDir;
+use tokio::sync::mpsc;
 
 use crate::{
     core::{
         config::TestCase,
-        models::{BuiltTest, FailureReason, TestResult},
+        models::{BuildContext, BuiltTest, FailureReason, TestResult},
     },
     infra::{command, t},
 };
@@ -35,6 +37,7 @@ pub async fn run_test_case(
     case: TestCase,
     project_root: &PathBuf,
     crate_name: &str,
+    temp_dir_tx: mpsc::UnboundedSender<TempDir>,
 ) -> Result<TestResult> {
     let max_attempts = 1 + case.retries.unwrap_or(0);
     let mut last_result: Option<TestResult> = None;
@@ -43,7 +46,8 @@ pub async fn run_test_case(
         let case_name = case.name.clone();
         let timeout_dur = case.timeout_secs.map(std::time::Duration::from_secs);
 
-        let execution_future = run_test_case_inner(case.clone(), project_root, crate_name);
+        let execution_future =
+            run_test_case_inner(case.clone(), project_root, crate_name, temp_dir_tx.clone());
 
         let result = if let Some(duration) = timeout_dur {
             match tokio::time::timeout(duration, execution_future).await {
@@ -117,11 +121,12 @@ async fn run_test_case_inner(
     case: TestCase,
     project_root: &PathBuf,
     crate_name: &str,
+    temp_dir_tx: mpsc::UnboundedSender<TempDir>,
 ) -> Result<TestResult> {
     if let Some(custom_command) = &case.command {
         run_custom_command_case(case.clone(), project_root, custom_command).await
     } else {
-        run_default_flow_case(case, project_root, crate_name).await
+        run_default_flow_case(case, project_root, crate_name, temp_dir_tx).await
     }
 }
 
@@ -192,8 +197,9 @@ async fn run_default_flow_case(
     case: TestCase,
     project_root: &PathBuf,
     crate_name: &str,
+    temp_dir_tx: mpsc::UnboundedSender<TempDir>,
 ) -> Result<TestResult> {
-    match build_test_case(case.clone(), project_root, crate_name).await {
+    match build_test_case(case.clone(), project_root, crate_name, temp_dir_tx).await {
         Ok(built_test) => run_built_test(built_test, project_root).await,
         Err(e) => {
             let error_string = e.to_string();
@@ -222,8 +228,13 @@ async fn build_test_case(
     case: TestCase,
     project_root: &PathBuf,
     crate_name: &str,
+    temp_dir_tx: mpsc::UnboundedSender<TempDir>,
 ) -> Result<BuiltTest> {
-    let build_ctx = crate::infra::fs::create_build_dir(project_root, &case.name)?;
+    let (build_path, temp_dir) = crate::infra::fs::create_build_dir(project_root, &case.name)?;
+    temp_dir_tx
+        .send(temp_dir)
+        .map_err(|e| anyhow::anyhow!("Failed to send temp dir through channel: {}", e))?;
+    let build_ctx = BuildContext::new(build_path);
     let build_start_time = Instant::now();
 
     let mut cmd = tokio::process::Command::new("cargo");

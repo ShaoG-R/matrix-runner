@@ -1,8 +1,10 @@
-use criterion::{Criterion, criterion_group, criterion_main};
+use criterion::{criterion_group, criterion_main, Criterion};
 use matrix_runner::core::config::TestCase;
 use matrix_runner::core::execution::run_test_case;
 use std::path::PathBuf;
+use tempfile::TempDir;
 use tokio::runtime::Runtime;
+use tokio::sync::mpsc;
 
 fn bench_run_test_case(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
@@ -21,7 +23,11 @@ fn bench_run_test_case(c: &mut Criterion) {
 
     c.bench_function("run_test_case", |b| {
         b.to_async(&rt).iter(|| async {
-            let _ = run_test_case(case.clone(), &project_root, &crate_name).await;
+            let (tx, mut rx) = mpsc::unbounded_channel::<TempDir>();
+            tokio::spawn(async move {
+                while rx.recv().await.is_some() {}
+            });
+            let _ = run_test_case(case.clone(), &project_root, &crate_name, tx).await;
         });
     });
 }

@@ -11,7 +11,6 @@ use fs_extra::dir::{copy, CopyOptions};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tempfile::{tempdir, TempDir};
-use crate::core::models::BuildContext;
 
 /// Creates a unique, temporary build directory for a test case.
 ///
@@ -21,7 +20,7 @@ use crate::core::models::BuildContext;
 ///
 /// # Returns
 /// A `BuildContext` containing the temporary directory information
-pub fn create_build_dir(project_root: &Path, case_name: &str) -> Result<BuildContext> {
+pub fn create_build_dir(project_root: &Path, case_name: &str) -> Result<(PathBuf, TempDir)> {
     let sanitized_name = case_name
         .chars()
         .map(|c| if c.is_alphanumeric() { c } else { '_' })
@@ -47,10 +46,7 @@ pub fn create_build_dir(project_root: &Path, case_name: &str) -> Result<BuildCon
         
     let path = temp_dir.path().to_path_buf();
     
-    Ok(BuildContext {
-        _temp_root: temp_dir,
-        path,
-    })
+    Ok((path, temp_dir))
 }
 
 /// A wrapper around `tempfile::tempdir_in` to provide more context on failure.

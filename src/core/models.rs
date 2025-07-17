@@ -12,9 +12,7 @@ use crate::infra::t;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::Duration;
-use tempfile::TempDir;
 use std::fmt;
-use anyhow::Result;
 
 /// Enumerates the possible reasons for a test case failure.
 /// This helps in categorizing errors for reporting and handling.
@@ -210,9 +208,6 @@ impl std::error::Error for TestResult {}
 /// 单个构建的上下文，管理其隔离的临时目录。
 /// 当此结构体被丢弃时，临时目录会自动删除，以确保清理。
 pub struct BuildContext {
-    /// The `TempDir` guard. When this goes out of scope, the directory on disk is deleted.
-    /// `TempDir` 的 guard。当它超出作用域时，磁盘上的目录将被删除。
-    pub _temp_root: TempDir,
     /// The absolute path to the target directory within the temporary directory.
     /// This is where `cargo` will place build artifacts.
     /// 临时目录中 target 目录的绝对路径。
@@ -221,13 +216,8 @@ pub struct BuildContext {
 }
 
 impl BuildContext {
-    pub fn new() -> Result<Self> {
-        let temp_dir = tempfile::tempdir()?;
-        let path = temp_dir.path().to_path_buf();
-        Ok(Self {
-            _temp_root: temp_dir,
-            path,
-        })
+    pub fn new(path: PathBuf) -> Self {
+        Self { path }
     }
 }
 
