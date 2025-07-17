@@ -48,6 +48,7 @@ compiler_error_parse_failed = "无法解析特定的编译器错误。以下是�
 build_failed_unexpected = "构建意外失败。"
 test_no_binaries = "未找到测试用例 '%{name}' 的二进制文件"
 test_no_binaries_message = "请确保您的 Cargo.toml 配置正确并且构建已成功。"
+command_prefix = "运行命令："
 
 [report]
 summary_banner = "测试总结"

@@ -52,7 +52,6 @@ pub enum TestResult {
         /// The test case configuration that was executed / 执行的测试用例配置
         case: TestCase,
         /// The complete output from the test execution / 测试执行的完整输出
-        #[allow(dead_code)]
         output: String,
         /// The time taken to execute the test / 执行测试所花费的时间
         duration: Duration,

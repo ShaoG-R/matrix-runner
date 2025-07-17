@@ -48,6 +48,7 @@ compiler_error_parse_failed = "Could not parse specific compiler errors. Raw out
 build_failed_unexpected = "Build failed unexpectedly."
 test_no_binaries = "No binaries found for test case '%{name}'"
 test_no_binaries_message = "Ensure your Cargo.toml is configured correctly and a build was successful."
+command_prefix = "Running command:"
 
 [report]
 summary_banner = "Test Summary"

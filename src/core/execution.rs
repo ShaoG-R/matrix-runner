@@ -163,6 +163,13 @@ async fn run_custom_command_case(
     let status = status_res.context("Failed to get process status")?;
     let duration = start_time.elapsed();
 
+    let command_log = format!(
+        "{} {}\n",
+        t!("run.command_prefix").blue(),
+        expanded_command
+    );
+    let output = format!("{command_log}{output}");
+
     if !output.trim().is_empty() {
         println!("{}", output.trim());
     }
@@ -338,6 +345,13 @@ async fn run_built_test(built_test: BuiltTest, project_root: &PathBuf) -> Result
     let (status_res, output) = command::spawn_and_capture(cmd).await;
     let run_duration = run_start_time.elapsed();
     let total_duration = built_test.duration + run_duration;
+
+    let command_log = format!(
+        "{} {}\n",
+        t!("run.command_prefix").blue(),
+        built_test.executable_path.display()
+    );
+    let output = format!("{command_log}{output}");
 
     let status = match status_res {
         Ok(s) => s,
