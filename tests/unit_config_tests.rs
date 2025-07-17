@@ -233,6 +233,7 @@ mod test_matrix_tests {
                     timeout_secs: None,
                 },
             ],
+            fast_fail: false,
         };
 
         let toml_str = toml::to_string_pretty(&matrix).unwrap();
@@ -271,6 +272,7 @@ mod test_matrix_tests {
                 retries: None,
                 timeout_secs: None,
             }],
+            fast_fail: false,
         };
 
         // Serialize to TOML

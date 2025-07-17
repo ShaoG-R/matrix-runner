@@ -88,6 +88,11 @@ pub struct TestMatrix {
     #[serde(default = "default_language")]
     pub language: String,
 
+    /// If `true`, the test run will stop immediately after the first unexpected failure.
+    /// 如果为 `true`，测试运行将在第一次意外失败后立即停止。
+    #[serde(default)]
+    pub fast_fail: bool,
+
     /// A vector containing all the test cases to be potentially executed.
     /// 一个包含所有可能被执行的测试用例的向量。
     pub cases: Vec<TestCase>,

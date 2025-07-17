@@ -72,6 +72,12 @@ pub fn build_cli() -> Command {
                         .long("html")
                         .help(t!("cli.run.html").to_string())
                         .value_parser(clap::value_parser!(PathBuf)),
+                )
+                .arg(
+                    Arg::new("fast_fail")
+                        .long("fast-fail")
+                        .help(t!("cli.run.fast_fail").to_string())
+                        .action(clap::ArgAction::SetTrue),
                 ),
         )
         .subcommand(
@@ -116,6 +122,7 @@ pub async fn process_command(matches: ArgMatches) -> anyhow::Result<()> {
             let total_runners = sub_matches.get_one::<usize>("total_runners").copied();
             let runner_index = sub_matches.get_one::<usize>("runner_index").copied();
             let html = sub_matches.get_one::<PathBuf>("html").cloned();
+            let fast_fail = sub_matches.get_flag("fast_fail");
 
             commands::run::execute(
                 jobs,
@@ -125,6 +132,7 @@ pub async fn process_command(matches: ArgMatches) -> anyhow::Result<()> {
                 runner_index,
                 html,
                 lang,
+                fast_fail,
             )
             .await
         }

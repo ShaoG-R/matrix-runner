@@ -49,8 +49,10 @@ pub async fn execute(
     runner_index: Option<usize>,
     html: Option<PathBuf>,
     lang: Option<String>,
+    fast_fail_cli: bool,
 ) -> Result<()> {
     let (test_matrix, config_path) = setup_and_parse_config(&config)?;
+    let fast_fail_mode = fast_fail_cli || test_matrix.fast_fail;
 
     // The locale has been pre-initialized in main.rs from the system or --lang argument.
     // We only override it if the config file specifies a non-default language
@@ -143,6 +145,7 @@ pub async fn execute(
         &crate_name,
         overall_stop_token,
         temp_dir_tx.clone(),
+        fast_fail_mode,
     )
     .await?;
 
@@ -270,6 +273,7 @@ async fn run_tests(
     crate_name: &str,
     overall_stop_token: CancellationToken,
     temp_dir_tx: mpsc::UnboundedSender<TempDir>,
+    fast_fail: bool,
 ) -> Result<(
     Vec<models::TestResult>,
     bool,
@@ -299,6 +303,11 @@ async fn run_tests(
                     Ok(models::TestResult::Skipped)
                 }
 
+                _ = fast_fail_token.cancelled() => {
+                    handle.abort();
+                    Ok(models::TestResult::Skipped)
+                }
+
                 result = &mut handle => {
                     result.map(|inner_result| {
                         match inner_result {
@@ -324,7 +333,7 @@ async fn run_tests(
                 }
             };
 
-            if !is_flaky && final_result.is_unexpected_failure() {
+            if fast_fail && !is_flaky && final_result.is_unexpected_failure() {
                 fast_fail_token.cancel();
             }
 
