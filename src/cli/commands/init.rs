@@ -12,10 +12,13 @@ use std::{fs, path::PathBuf};
 use crate::infra::t;
 
 const DEFAULT_CONFIG: &str = r#"# Test Matrix Configuration / 测试矩阵配置
-# Documentation: https://github.com/yourusername/matrix-runner
+# Documentation: https://github.com/ShaoG-R/matrix-runner
 
 # Language for error messages / 错误消息的语言
 language = "en"
+
+# Abort on first failure? / 遇到首个失败时立即中止？
+fast_fail = true
 
 # Test Cases / 测试用例
 [[cases]]
