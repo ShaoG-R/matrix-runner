@@ -267,6 +267,8 @@ async fn build_test_case(
         t!("run.building_test", name = &case.name).blue()
     );
 
+    let command_string_for_log = format!("{:?}", cmd).replace('"', "");
+
     let (status_res, output) = command::spawn_and_capture(cmd).await;
     let build_duration = build_start_time.elapsed();
 
@@ -280,9 +282,15 @@ async fn build_test_case(
 
         // Format and return the error output
         let error_output = command::format_build_error_output(&output);
+        let command_log = format!(
+            "{} {}\n",
+            t!("run.command_prefix").blue(),
+            command_string_for_log
+        );
+        let full_output = format!("{command_log}{error_output}");
         return Err(anyhow::anyhow!(TestResult::Failed {
             case,
-            output: error_output,
+            output: full_output,
             reason: FailureReason::Build,
             duration: build_duration,
         }));
