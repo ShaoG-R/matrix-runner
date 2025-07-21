@@ -19,6 +19,35 @@ Testing Rust projects with a large number of feature flags, especially those sup
 
 ## Installation
 
+### Pre-compiled Binaries
+
+You can download the latest pre-compiled binaries for Linux, Windows, and macOS directly from the [latest release](https://github.com/ShaoG-R/matrix-runner/releases/latest). These links point to the most recent version.
+
+**Release Binaries (Optimized):**
+```
+# Linux (x86_64)
+https://github.com/ShaoG-R/matrix-runner/releases/latest/download/matrix-runner-linux-amd64
+
+# Windows (x86_64)
+https://github.com/ShaoG-R/matrix-runner/releases/latest/download/matrix-runner-windows-amd64.exe
+
+# macOS (Apple Silicon, arm64)
+https://github.com/ShaoG-R/matrix-runner/releases/latest/download/matrix-runner-macos-arm64
+```
+
+**Debug Binaries (for troubleshooting):**
+```
+# Linux (x86_64)
+https://github.com/ShaoG-R/matrix-runner/releases/latest/download/matrix-runner-debug-linux-amd64
+
+# Windows (x86_64)
+https://github.com/ShaoG-R/matrix-runner/releases/latest/download/matrix-runner-debug-windows-amd64.exe
+
+# macOS (Apple Silicon, arm64)
+https://github.com/ShaoG-R/matrix-runner/releases/latest/download/matrix-runner-debug-macos-arm64
+```
+
+### From Source
 ```bash
 cargo install matrix-runner
 ```

@@ -181,10 +181,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -e
           TAG="${{ steps.generate_tag.outputs.tag_name }}"
           if gh release view "$TAG" > /dev/null 2>&1; then
             echo "Release '$TAG' exists. Deleting it and the associated tag..."
-            gh release delete "$TAG" --yes
+            gh release delete "$TAG" --cleanup-tag --yes
             echo "Successfully deleted release and tag '$TAG'."
           else
             echo "Release '$TAG' does not exist. No need to delete."
@@ -212,7 +213,7 @@ jobs:
           mv artifacts/windows-amd64-debug-binary/${PROJECT_NAME}.exe release_assets/${PROJECT_NAME}-debug-windows-amd64.exe
           # macOS
           mv artifacts/macos-arm64-release-binary/${PROJECT_NAME} release_assets/${PROJECT_NAME}-macos-arm64
-          mv artifacts/macos-arm64-debug-binary/${PROJECT_NAME} release_assets/${PROJECT_NAME}-debug-macos-amd64
+          mv artifacts/macos-arm64-debug-binary/${PROJECT_NAME} release_assets/${PROJECT_NAME}-debug-macos-arm64
         shell: bash
 
       - name: Create GitHub Release and Upload Assets

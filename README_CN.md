@@ -19,6 +19,36 @@
 
 ## 安装
 
+### 预编译二进制文件
+
+您可以直接从 [最新版本发布页面](https://github.com/ShaoG-R/matrix-runner/releases/latest) 下载适用于 Linux、Windows 和 macOS 的最新预编译二进制文件。以下链接始终指向最新版本。
+
+**Release 版本 (已优化):**
+```
+# Linux (x86_64)
+https://github.com/ShaoG-R/matrix-runner/releases/latest/download/matrix-runner-linux-amd64
+
+# Windows (x86_64)
+https://github.com/ShaoG-R/matrix-runner/releases/latest/download/matrix-runner-windows-amd64.exe
+
+# macOS (Apple Silicon, arm64)
+https://github.com/ShaoG-R/matrix-runner/releases/latest/download/matrix-runner-macos-arm64
+```
+
+**Debug 版本 (用于问题排查):**
+```
+# Linux (x86_64)
+https://github.com/ShaoG-R/matrix-runner/releases/latest/download/matrix-runner-debug-linux-amd64
+
+# Windows (x86_64)
+https://github.com/ShaoG-R/matrix-runner/releases/latest/download/matrix-runner-debug-windows-amd64.exe
+
+# macOS (Apple Silicon, arm64)
+https://github.com/ShaoG-R/matrix-runner/releases/latest/download/matrix-runner-debug-macos-arm64
+```
+
+### 从源码安装
+
 ```bash
 cargo install matrix-runner
 ```
