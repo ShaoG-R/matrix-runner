@@ -199,14 +199,27 @@ jobs:
       - name: Display structure of downloaded files
         run: ls -R artifacts
 
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Prepare release assets
+        id: prepare_assets
+        run: |
+          PROJECT_NAME=${{ needs.build-linux-release.outputs.project_name }}
+          mkdir -p release_assets
+          # Linux
+          mv artifacts/linux-amd64-release-binary/${PROJECT_NAME}-linux-amd64 release_assets/
+          mv artifacts/linux-amd64-debug-binary/${PROJECT_NAME}-debug-linux-amd64 release_assets/
+          # Windows
+          mv artifacts/windows-amd64-release-binary/${PROJECT_NAME}.exe release_assets/${PROJECT_NAME}-windows-amd64.exe
+          mv artifacts/windows-amd64-debug-binary/${PROJECT_NAME}.exe release_assets/${PROJECT_NAME}-debug-windows-amd64.exe
+          # macOS
+          mv artifacts/macos-arm64-release-binary/${PROJECT_NAME} release_assets/${PROJECT_NAME}-macos-arm64
+          mv artifacts/macos-arm64-debug-binary/${PROJECT_NAME} release_assets/${PROJECT_NAME}-debug-macos-amd64
+        shell: bash
+
+      - name: Create GitHub Release and Upload Assets
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.generate_tag.outputs.tag_name }}
-          release_name: Release ${{ steps.generate_tag.outputs.tag_name }}
+          name: Release ${{ steps.generate_tag.outputs.tag_name }}
           body: |
             ## Release Notes
             - Statically linked Linux binaries (x86_64-musl).
@@ -214,63 +227,5 @@ jobs:
             - macOS binaries (arm64).
             - Includes both release and debug versions, built in parallel.
             - Linux version built via a reusable Dockerfile.
-
-      - name: Upload Linux Release Binary
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/linux-amd64-release-binary/${{ needs.build-linux-release.outputs.project_name }}-linux-amd64
-          asset_name: ${{ needs.build-linux-release.outputs.project_name }}-linux-amd64
-          asset_content_type: application/octet-stream
-
-      - name: Upload Linux Debug Binary
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/linux-amd64-debug-binary/${{ needs.build-linux-release.outputs.project_name }}-debug-linux-amd64
-          asset_name: ${{ needs.build-linux-release.outputs.project_name }}-debug-linux-amd64
-          asset_content_type: application/octet-stream
-
-      - name: Upload Windows Release Binary
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/windows-amd64-release-binary/${{ needs.build-linux-release.outputs.project_name }}.exe
-          asset_name: ${{ needs.build-linux-release.outputs.project_name }}-windows-amd64.exe
-          asset_content_type: application/octet-stream
-
-      - name: Upload Windows Debug Binary
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/windows-amd64-debug-binary/${{ needs.build-linux-release.outputs.project_name }}.exe
-          asset_name: ${{ needs.build-linux-release.outputs.project_name }}-debug-windows-amd64.exe
-          asset_content_type: application/octet-stream
-
-      - name: Upload macOS Release Binary
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/macos-arm64-release-binary/${{ needs.build-linux-release.outputs.project_name }}
-          asset_name: ${{ needs.build-linux-release.outputs.project_name }}-macos-arm64
-          asset_content_type: application/octet-stream
-
-      - name: Upload macOS Debug Binary
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/macos-arm64-debug-binary/${{ needs.build-linux-release.outputs.project_name }}
-          asset_name: ${{ needs.build-linux-release.outputs.project_name }}-debug-macos-arm64
-          asset_content_type: application/octet-stream
+          files: release_assets/*
+          token: ${{ secrets.GITHUB_TOKEN }}
